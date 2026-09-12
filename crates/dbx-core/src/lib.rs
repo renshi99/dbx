@@ -114,6 +114,7 @@ pub mod types;
 pub mod update;
 pub mod write_unlock;
 pub mod xlsx_export;
+pub mod xxljob;
 
 pub const R2_CDN_BASE: &str = "https://dl.dbxio.com/";
 pub const GITHUB_RELEASE_DOWNLOAD_PREFIX: &str = "https://github.com/t8y2/dbx/releases/download/";

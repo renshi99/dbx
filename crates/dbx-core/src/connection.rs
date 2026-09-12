@@ -116,6 +116,7 @@ pub enum PoolKind {
     /// Nacos admin connection marker.
     Nacos,
     Jenkins(crate::jenkins::JenkinsClient),
+    XxlJob(crate::xxljob::XxlJobClient),
     Consul(crate::consul::ConsulClient),
     /// MQTT broker connection with an active client.
     #[cfg(feature = "mq-admin")]
@@ -233,6 +234,7 @@ enum ConnectionDatabaseInfoSource {
     Redis(String),
     Nacos,
     Jenkins(crate::jenkins::JenkinsClient),
+    XxlJob(crate::xxljob::XxlJobClient),
     Consul(Box<crate::consul::ConsulClient>),
     #[cfg(feature = "mq-admin")]
     MessageQueue,
@@ -2551,6 +2553,12 @@ impl AppState {
                 client.probe().await?;
                 PoolKind::Jenkins(client)
             }
+            DatabaseType::XxlJob => {
+                let transport = config.has_effective_transport_layers().then_some((host.as_str(), port));
+                let client = crate::xxljob::XxlJobClient::new(&db_config, transport)?;
+                client.probe().await?;
+                PoolKind::XxlJob(client)
+            }
             DatabaseType::Nacos => {
                 let admin_config = self.nacos_admin_config_for_connection(connection_id, &config).await?;
                 let adapter = self.nacos_registry.build_transient_config(admin_config).await?;
@@ -3840,6 +3848,7 @@ impl AppState {
                 | PoolKind::ExternalDriver { .. }
                 | PoolKind::MessageQueue
                 | PoolKind::Jenkins(_)
+                | PoolKind::XxlJob(_)
                 | PoolKind::Nacos
                 | PoolKind::Consul(_) => false,
                 #[cfg(feature = "mq-admin")]
@@ -4510,6 +4519,7 @@ impl AppState {
                 }
                 Some(PoolKind::Redis(_)) => Some(ConnectionDatabaseInfoSource::Redis(pool_key.clone())),
                 Some(PoolKind::Jenkins(client)) => Some(ConnectionDatabaseInfoSource::Jenkins(client.clone())),
+                Some(PoolKind::XxlJob(client)) => Some(ConnectionDatabaseInfoSource::XxlJob(client.clone())),
                 Some(PoolKind::Nacos) => Some(ConnectionDatabaseInfoSource::Nacos),
                 Some(PoolKind::Consul(client)) => Some(ConnectionDatabaseInfoSource::Consul(Box::new(client.clone()))),
                 #[cfg(feature = "mq-admin")]
@@ -4565,6 +4575,9 @@ impl AppState {
             },
             Some(ConnectionDatabaseInfoSource::Jenkins(client)) => {
                 Ok(Some(crate::jenkins::database_info(&client.probe().await?)))
+            }
+            Some(ConnectionDatabaseInfoSource::XxlJob(client)) => {
+                Ok(Some(crate::xxljob::database_info(&client.probe().await?)))
             }
             Some(ConnectionDatabaseInfoSource::Nacos) => {
                 let admin_config = self.nacos_admin_config_for_connection(connection_id, &config).await?;
@@ -4879,6 +4892,7 @@ impl AppState {
                 | PoolKind::ExternalDriver { .. }
                 | PoolKind::MessageQueue
                 | PoolKind::Jenkins(_)
+                | PoolKind::XxlJob(_)
                 | PoolKind::Nacos
                 | PoolKind::Consul(_) => true,
                 #[cfg(feature = "mq-admin")]
@@ -5304,6 +5318,12 @@ fn connection_remote_endpoint(config: &ConnectionConfig) -> (String, u16) {
         parse_mq_admin_host_port(config).unwrap_or_else(|| (config.host.clone(), config.port))
     } else if config.db_type == DatabaseType::Mqtt {
         parse_mqtt_broker_host_port(config).unwrap_or_else(|| (config.host.clone(), config.port))
+    } else if config.db_type == DatabaseType::XxlJob {
+        crate::xxljob::XxlJobConfig::from_connection(config)
+            .ok()
+            .and_then(|c| reqwest::Url::parse(&c.server_addr).ok())
+            .and_then(|u| Some((u.host_str()?.to_string(), u.port_or_known_default()?)))
+            .unwrap_or_else(|| (config.host.clone(), config.port))
     } else if config.db_type == DatabaseType::Jenkins {
         crate::jenkins::JenkinsConfig::from_connection(config)
             .ok()
@@ -5690,6 +5710,9 @@ async fn close_pool_kind(pool: PoolKind) -> Result<(), String> {
         }
         PoolKind::MessageQueue => {}
         PoolKind::Jenkins(_) => {}
+        PoolKind::XxlJob(client) => {
+            client.shutdown().await;
+        }
         PoolKind::Nacos => {}
         PoolKind::Consul(_) => {}
         #[cfg(feature = "mq-admin")]

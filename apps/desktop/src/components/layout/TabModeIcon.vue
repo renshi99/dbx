@@ -19,6 +19,7 @@ defineProps<{ tab: QueryTab }>();
   <KeyRound v-else-if="tab.mode === 'etcd' || tab.mode === 'zookeeper' || tab.mode === 'consul'" />
   <Gauge v-else-if="tab.mode === 'consul-overview' || tab.mode === 'etcd-dashboard' || tab.mode === 'mysql-dashboard' || tab.mode === 'postgres-dashboard' || tab.mode === 'nacos-dashboard'" />
   <ShieldCheck v-else-if="tab.mode === 'etcd-access-control'" />
+  <DatabaseIcon v-else-if="tab.mode === 'xxljob'" db-type="xxljob" />
   <DatabaseIcon v-else-if="tab.mode === 'jenkins'" db-type="jenkins" />
   <Network v-else-if="tab.mode === 'nacos'" />
   <Database v-else-if="tab.mode === 'databases'" />

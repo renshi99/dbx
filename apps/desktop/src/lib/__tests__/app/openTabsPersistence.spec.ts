@@ -21,6 +21,13 @@ function roundTrip(tabs: QueryTab[]) {
 }
 
 describe("openTabsPersistence originalSql round-trip", () => {
+  it("preserves XXL-JOB filters and pages without task or log payloads", () => {
+    const state: NonNullable<QueryTab["xxljobViewState"]> = { view: "logs", group: 5, executorPage: 0, jobPage: 2, logPage: 3, jobDesc: "report", author: "", executorHandler: "", triggerStatus: -1, logJobId: 7, logStatus: 2, filterTime: "" };
+    const [restored] = roundTrip([queryTab({ mode: "xxljob", xxljobViewState: state })]);
+    expect(restored.mode).toBe("xxljob");
+    expect(restored.xxljobViewState).toEqual(state);
+    expect(restored.xxljobViewState).not.toBe(state);
+  });
   it("preserves per-tab output view state across a round-trip", () => {
     const [restored] = roundTrip([queryTab({ uiState: { activeOutputView: "chart", resultPaneOpen: false } })]);
 

@@ -400,6 +400,20 @@ export const createSqlFileInFolder = forward("createSqlFileInFolder");
 export const renameSqlFileInFolder = forward("renameSqlFileInFolder");
 export const deleteSqlFileInFolder = forward("deleteSqlFileInFolder");
 
+export const xxljobTestConnection = forward("xxljobTestConnection");
+export const xxljobListExecutors = forward("xxljobListExecutors");
+export const xxljobListJobs = forward("xxljobListJobs");
+export const xxljobAddJob = forward("xxljobAddJob");
+export const xxljobUpdateJob = forward("xxljobUpdateJob");
+export const xxljobRemoveJob = forward("xxljobRemoveJob");
+export const xxljobStartJob = forward("xxljobStartJob");
+export const xxljobStopJob = forward("xxljobStopJob");
+export const xxljobTriggerJob = forward("xxljobTriggerJob");
+export const xxljobNextTriggerTime = forward("xxljobNextTriggerTime");
+export const xxljobListLogs = forward("xxljobListLogs");
+export const xxljobReadLog = forward("xxljobReadLog");
+export const xxljobCancelLog = forward("xxljobCancelLog");
+
 // Nacos
 export const nacosTestConnection = forward("nacosTestConnection");
 export const nacosListNamespaces = forward("nacosListNamespaces");

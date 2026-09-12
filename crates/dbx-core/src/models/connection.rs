@@ -1176,6 +1176,9 @@ impl ConnectionConfig {
             DatabaseType::MessageQueue => self.message_queue_admin_url(),
             DatabaseType::Mqtt => self.mqtt_broker_url(),
             DatabaseType::Jenkins => self.jenkins_api_url(),
+            DatabaseType::XxlJob => crate::xxljob::XxlJobConfig::from_connection(self)
+                .map(|c| c.server_addr)
+                .unwrap_or_else(|_| "xxljob://".into()),
             DatabaseType::Nacos => self.nacos_admin_url(),
             DatabaseType::Consul => self.consul_api_url(),
         }
@@ -1455,6 +1458,9 @@ impl ConnectionConfig {
             DatabaseType::MessageQueue => self.message_queue_admin_url(),
             DatabaseType::Mqtt => self.mqtt_broker_url(),
             DatabaseType::Jenkins => self.jenkins_api_url(),
+            DatabaseType::XxlJob => crate::xxljob::XxlJobConfig::from_connection(self)
+                .map(|c| c.server_addr)
+                .unwrap_or_else(|_| "xxljob://".into()),
             DatabaseType::Nacos => self.nacos_admin_url(),
             DatabaseType::Consul => self.consul_api_url(),
         }

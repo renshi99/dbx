@@ -716,6 +716,8 @@ async function openDirectNavigationNode(node: TreeNode, requestId: number) {
   if (node.type === "consul-root") {
     queryStore.createTab(node.connectionId, "", `${connectionName}:keys`, "consul");
     refreshActiveKvBrowserAfterOpen("consul", node.connectionId);
+  } else if (node.type === "xxljob-root") {
+    queryStore.openXxlJob(node.connectionId);
   } else if (node.type === "jenkins-root") {
     queryStore.openJenkins(node.connectionId);
   } else if (node.type === "consul-overview") {
@@ -906,6 +908,8 @@ async function toggle(requestId = beginNavigationRequest()) {
         await connectionStore.loadEtcdRoot(node.connectionId);
       } else if (config?.db_type === "zookeeper") {
         await connectionStore.loadZooKeeperRoot(node.connectionId);
+      } else if (config?.db_type === "xxljob") {
+        await connectionStore.loadXxlJobRoot(node.connectionId);
       } else if (config?.db_type === "jenkins") {
         await connectionStore.loadJenkinsRoot(node.connectionId);
       } else if (config?.db_type === "consul") {
@@ -5835,7 +5839,17 @@ function buildSpecialSidebarMenu(context: SidebarMenuFactoryContext): boolean {
     return true;
   }
 
-  if (node.type === "jenkins-root" || node.type === "nacos-access-control" || node.type === "etcd-root" || node.type === "etcd-dashboard" || node.type === "etcd-access-control" || node.type === "zookeeper-root" || node.type === "consul-root" || node.type === "consul-overview") {
+  if (
+    node.type === "xxljob-root" ||
+    node.type === "jenkins-root" ||
+    node.type === "nacos-access-control" ||
+    node.type === "etcd-root" ||
+    node.type === "etcd-dashboard" ||
+    node.type === "etcd-access-control" ||
+    node.type === "zookeeper-root" ||
+    node.type === "consul-root" ||
+    node.type === "consul-overview"
+  ) {
     items.push({ label: t("contextMenu.openConnection"), action: toggle, icon: Database });
     return true;
   }

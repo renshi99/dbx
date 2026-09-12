@@ -112,6 +112,7 @@ const assetIcons: Record<string, string> = {
   rabbitmq: "rabbitmq",
   nacos: "nacos.png",
   jenkins: "jenkins.png",
+  xxljob: "xxljob.jpg",
   consul: "consul",
   iris: "iris",
   cache: "iris",

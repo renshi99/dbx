@@ -3793,6 +3793,8 @@ export const useConnectionStore = defineStore("connection", () => {
       await loadEtcdRoot(connectionId);
     } else if (config.db_type === "zookeeper") {
       await loadZooKeeperRoot(connectionId);
+    } else if (config.db_type === "xxljob") {
+      await loadXxlJobRoot(connectionId);
     } else if (config.db_type === "jenkins") {
       await loadJenkinsRoot(connectionId);
     } else if (config.db_type === "consul") {
@@ -4703,6 +4705,14 @@ export const useConnectionStore = defineStore("connection", () => {
       );
       targetNode.isExpanded = true;
     });
+  }
+
+  async function loadXxlJobRoot(connectionId: string) {
+    await ensureConnected(connectionId);
+    const node = findConnectionNode(connectionId);
+    if (!node) return;
+    setChildren(node, [{ id: `${connectionId}:xxljob-root`, label: "XXL-JOB", type: "xxljob-root", connectionId, database: "", children: [], isExpanded: false }]);
+    node.isExpanded = true;
   }
 
   async function loadJenkinsRoot(connectionId: string) {
@@ -6720,6 +6730,8 @@ export const useConnectionStore = defineStore("connection", () => {
         await loadEtcdRoot(node.connectionId);
       } else if (config?.db_type === "zookeeper") {
         await loadZooKeeperRoot(node.connectionId);
+      } else if (config?.db_type === "xxljob") {
+        await loadXxlJobRoot(node.connectionId);
       } else if (config?.db_type === "jenkins") {
         await loadJenkinsRoot(node.connectionId);
       } else if (config?.db_type === "consul") {
@@ -9075,6 +9087,7 @@ export const useConnectionStore = defineStore("connection", () => {
     loadEtcdRoot,
     loadZooKeeperRoot,
     loadJenkinsRoot,
+    loadXxlJobRoot,
     loadConsulRoot,
     loadMqTenants,
     loadMqttTopics,

@@ -31,7 +31,7 @@ export interface ConnectionUrlCopyOptions {
  * Types whose config shape does not map to a `scheme://user@host:port/db` URL
  * (cloud resource paths, service registries, message queues, file paths).
  */
-const URL_COPY_UNSUPPORTED_DB_TYPES = new Set<DatabaseType>(["bigquery", "spanner", "cloudflare-d1", "turso", "jenkins", "nacos", "mq", "mqtt", "hbase"]);
+const URL_COPY_UNSUPPORTED_DB_TYPES = new Set<DatabaseType>(["bigquery", "spanner", "cloudflare-d1", "turso", "xxljob", "jenkins", "nacos", "mq", "mqtt", "hbase"]);
 
 /**
  * Standard (non-JDBC) URL schemes keyed by db_type. Values intentionally match

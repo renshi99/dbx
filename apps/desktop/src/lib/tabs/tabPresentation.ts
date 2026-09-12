@@ -140,6 +140,7 @@ export function tabDisplayTitle(tab: QueryTab, t: Translate): string {
     if (compact) return connectionDisplayName(tab.connectionId);
     return `${connectionDisplayName(tab.connectionId)}@keys`;
   }
+  if (tab.mode === "xxljob") return `${connectionDisplayName(tab.connectionId)}@XXL-JOB`;
   if (tab.mode === "jenkins") return `${connectionDisplayName(tab.connectionId)}@Jenkins`;
   if (tab.mode === "consul") {
     if (compact) return connectionDisplayName(tab.connectionId);
@@ -485,6 +486,7 @@ export function tabModeLabel(tab: QueryTab, t: Translate): string {
   if (tab.mode === "zookeeper") return t("tabs.zookeeper");
   if (tab.mode === "consul") return t("tabs.consul");
   if (tab.mode === "consul-overview") return t("consul.ui.overview");
+  if (tab.mode === "xxljob") return "XXL-JOB";
   if (tab.mode === "jenkins") return "Jenkins";
   if (tab.mode === "nacos") return "Nacos";
   if (tab.mode === "databases") return t("tabs.databases");

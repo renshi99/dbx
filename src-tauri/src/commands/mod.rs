@@ -64,4 +64,5 @@ mod update_portable;
 pub mod vector_cmd;
 pub mod window_controls;
 pub mod xlsx_export;
+pub mod xxljob_cmd;
 pub mod zookeeper_cmd;

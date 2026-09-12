@@ -4548,6 +4548,10 @@ export async function refreshConnections(): Promise<void> {
 export * from "@/lib/backend/mq-http";
 export * from "@/lib/backend/mqtt-http";
 
+import { createXxlJobApi } from "@/lib/backend/xxljob-api";
+export const { xxljobTestConnection, xxljobListExecutors, xxljobListJobs, xxljobAddJob, xxljobUpdateJob, xxljobRemoveJob, xxljobStartJob, xxljobStopJob, xxljobTriggerJob, xxljobNextTriggerTime, xxljobListLogs, xxljobReadLog, xxljobCancelLog } = createXxlJobApi((operation, request) =>
+  post("/api/xxljob/request", { operation, request }),
+);
 import { createJenkinsApi } from "@/lib/backend/jenkins-api";
 export const { jenkinsTestConnection, jenkinsListJobs, jenkinsGetJob, jenkinsListBuilds, jenkinsGetBuild, jenkinsGetBuildLog, jenkinsTriggerBuild, jenkinsGetQueueItem, jenkinsCancelQueueItem, jenkinsStopBuild } = createJenkinsApi((operation, request) =>
   post("/api/jenkins/request", { operation, request }),

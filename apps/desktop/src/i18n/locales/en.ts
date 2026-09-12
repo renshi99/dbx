@@ -1,3 +1,4 @@
+import { xxljobEn } from "./xxljob";
 import { jenkinsEn } from "./jenkins";
 import { redisGroupingEn as redisGrouping } from "./redisGrouping";
 import docs from "./docs/en";
@@ -81,6 +82,7 @@ const consul = {
 };
 
 export default {
+  xxljob: xxljobEn,
   jenkins: jenkinsEn,
   cellTransform: {
     title: "Convert preview",

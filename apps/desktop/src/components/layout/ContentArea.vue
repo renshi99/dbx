@@ -107,6 +107,7 @@ const ElasticsearchJsonResponsePanel = defineAsyncComponent(() => import("@/comp
 const ElasticsearchProfilePanel = defineAsyncComponent(() => import("@/components/common/ElasticsearchProfilePanel.vue"));
 const MqAdminConsole = defineAsyncComponent(() => import("@/components/mq/MqAdminConsole.vue"));
 const MqttAdminConsole = defineAsyncComponent(() => import("@/components/mqtt/MqttAdminConsole.vue"));
+const XxlJobWorkspace = defineAsyncComponent(() => import("@/components/xxljob/XxlJobWorkspace.vue"));
 const JenkinsWorkspace = defineAsyncComponent(() => import("@/components/jenkins/JenkinsWorkspace.vue"));
 const NacosAdminConsole = defineAsyncComponent(() => import("@/components/nacos/NacosAdminConsole.vue"));
 const NacosAccessControlConsole = defineAsyncComponent(() => import("@/components/nacos/NacosAccessControlConsole.vue"));
@@ -2403,6 +2404,9 @@ defineExpose({
       </div>
     </template>
 
+    <template v-else-if="activeTab.mode === 'xxljob'">
+      <XxlJobWorkspace :key="activeTab.id" :connection-id="activeTab.connectionId" :tab-id="activeTab.id" />
+    </template>
     <template v-else-if="activeTab.mode === 'jenkins'">
       <JenkinsWorkspace :key="activeTab.id" :connection-id="activeTab.connectionId" />
     </template>

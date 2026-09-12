@@ -5240,6 +5240,10 @@ export * from "@/lib/backend/mq-tauri";
 export * from "@/lib/backend/mqtt-tauri";
 export * from "@/lib/backend/nacos-tauri";
 
+import { createXxlJobApi } from "@/lib/backend/xxljob-api";
+export const { xxljobTestConnection, xxljobListExecutors, xxljobListJobs, xxljobAddJob, xxljobUpdateJob, xxljobRemoveJob, xxljobStartJob, xxljobStopJob, xxljobTriggerJob, xxljobNextTriggerTime, xxljobListLogs, xxljobReadLog, xxljobCancelLog } = createXxlJobApi((operation, request) =>
+  invoke("xxljob_request", { operation, request }),
+);
 import { createJenkinsApi } from "@/lib/backend/jenkins-api";
 export const { jenkinsTestConnection, jenkinsListJobs, jenkinsGetJob, jenkinsListBuilds, jenkinsGetBuild, jenkinsGetBuildLog, jenkinsTriggerBuild, jenkinsGetQueueItem, jenkinsCancelQueueItem, jenkinsStopBuild } = createJenkinsApi((operation, request) =>
   invoke("jenkins_request", { operation, request }),

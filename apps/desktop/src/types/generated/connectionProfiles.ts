@@ -125,6 +125,7 @@ export const CONNECTION_PROFILES = {
   dolt: { type: "mysql", port: 3306, user: "root", label: "Dolt", icon: "dolt", urlParams: "" },
   custom_postgres: { type: "postgres", port: 5432, user: "postgres", label: "Custom", icon: "postgres", urlParams: "" },
   jenkins: { type: "jenkins", port: 8080, user: "", label: "Jenkins", icon: "jenkins" },
+  xxljob: { type: "xxljob", port: 8080, user: "admin", label: "XXL-JOB", icon: "xxljob", host: "127.0.0.1" },
 } as const satisfies Record<string, ConnectionProfileDefinition>;
 
 export const CONNECTION_PROFILE_ICONS = {
@@ -233,6 +234,7 @@ export const CONNECTION_PROFILE_ICONS = {
   dolt: "dolt",
   custom_postgres: "postgres",
   jenkins: "jenkins",
+  xxljob: "xxljob",
 } as const satisfies Record<string, string>;
 
 export const CONNECTION_PICKER_OPTIONS = [
@@ -334,4 +336,5 @@ export const CONNECTION_PICKER_OPTIONS = [
   { value: "dolt", label: "Dolt", category: "sql" },
   { value: "custom_postgres", label: "Custom (PostgreSQL)", category: "sql" },
   { value: "jenkins", label: "Jenkins", category: "registry_config" },
+  { value: "xxljob", label: "XXL-JOB", category: "registry_config" },
 ] as const satisfies readonly ConnectionPickerOption[];
