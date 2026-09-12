@@ -14,6 +14,7 @@ pub(crate) mod export_download;
 pub mod hbase;
 pub mod history;
 pub mod jdbc;
+pub mod jenkins;
 pub mod layout;
 pub mod mcp_policy;
 pub mod mongo;

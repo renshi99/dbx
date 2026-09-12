@@ -5239,3 +5239,8 @@ export async function exportQueryResultMarkdown(filePath: string, columns: strin
 export * from "@/lib/backend/mq-tauri";
 export * from "@/lib/backend/mqtt-tauri";
 export * from "@/lib/backend/nacos-tauri";
+
+import { createJenkinsApi } from "@/lib/backend/jenkins-api";
+export const { jenkinsTestConnection, jenkinsListJobs, jenkinsGetJob, jenkinsListBuilds, jenkinsGetBuild, jenkinsGetBuildLog, jenkinsTriggerBuild, jenkinsGetQueueItem, jenkinsCancelQueueItem, jenkinsStopBuild } = createJenkinsApi((operation, request) =>
+  invoke("jenkins_request", { operation, request }),
+);

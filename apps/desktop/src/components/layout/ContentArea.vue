@@ -107,6 +107,7 @@ const ElasticsearchJsonResponsePanel = defineAsyncComponent(() => import("@/comp
 const ElasticsearchProfilePanel = defineAsyncComponent(() => import("@/components/common/ElasticsearchProfilePanel.vue"));
 const MqAdminConsole = defineAsyncComponent(() => import("@/components/mq/MqAdminConsole.vue"));
 const MqttAdminConsole = defineAsyncComponent(() => import("@/components/mqtt/MqttAdminConsole.vue"));
+const JenkinsWorkspace = defineAsyncComponent(() => import("@/components/jenkins/JenkinsWorkspace.vue"));
 const NacosAdminConsole = defineAsyncComponent(() => import("@/components/nacos/NacosAdminConsole.vue"));
 const NacosAccessControlConsole = defineAsyncComponent(() => import("@/components/nacos/NacosAccessControlConsole.vue"));
 const NacosDashboard = defineAsyncComponent(() => import("@/components/nacos/NacosDashboard.vue"));
@@ -2402,6 +2403,9 @@ defineExpose({
       </div>
     </template>
 
+    <template v-else-if="activeTab.mode === 'jenkins'">
+      <JenkinsWorkspace :key="activeTab.id" :connection-id="activeTab.connectionId" />
+    </template>
     <template v-else-if="activeTab.mode === 'consul-overview'">
       <div class="flex-1 min-h-0">
         <ConsulOverview ref="consulOverviewRef" :key="activeTab.id" :connection-id="activeTab.connectionId" />

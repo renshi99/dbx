@@ -918,6 +918,9 @@ const nacosImplementation = ref<NacosImplementation>("nacos");
 // choose an explicit version instead of relying on endpoint-shape guessing.
 const nacosVersionMode = ref<NacosVersionMode>("v2");
 const nacosApiPlane = ref<NacosApiPlane>("admin");
+const jenkinsServerAddr = ref("http://127.0.0.1:8080");
+const jenkinsTlsSkipVerify = ref(false);
+watch([jenkinsServerAddr, jenkinsTlsSkipVerify], () => resetTestState());
 const nacosServerAddr = ref("");
 const nacosContextPath = ref("");
 const nacosConsoleUrl = ref("");
@@ -2436,6 +2439,13 @@ function applyProfile(val: string, preserveConnectionFields = false) {
       form.value.client_cert_path = "";
       form.value.client_key_path = "";
     }
+    if (profile.type === "jenkins") {
+      jenkinsServerAddr.value = "http://127.0.0.1:8080";
+      jenkinsTlsSkipVerify.value = false;
+      form.value.username = "";
+      form.value.password = "";
+      form.value.database = undefined;
+    }
     if (profile.type === "nacos") {
       resetNacosFields();
       form.value.database = undefined;
@@ -2583,6 +2593,11 @@ watch(
         resetMqFields();
       }
       resetCassandraTlsFields(config.db_type === "cassandra" ? config.external_config : undefined);
+      if (config.db_type === "jenkins") {
+        const value = config.external_config as { serverAddr?: string; tlsSkipVerify?: boolean } | undefined;
+        jenkinsServerAddr.value = value?.serverAddr || "http://127.0.0.1:8080";
+        jenkinsTlsSkipVerify.value = value?.tlsSkipVerify === true;
+      }
       if (config.db_type === "nacos") {
         hydrateNacosFields(config.external_config);
       } else {
@@ -3457,6 +3472,7 @@ const hasRequiredConnectionTarget = computed(() => {
   }
   if (form.value.db_type === "zookeeper") return !!(form.value.host || form.value.connection_string || connectionUrlInput.value.trim());
   if (form.value.db_type === "mqtt") return !!mqttHost.value.trim() && mqttPort.value > 0;
+  if (form.value.db_type === "jenkins") return !!jenkinsServerAddr.value.trim();
   if (form.value.db_type === "nacos") return !!nacosServerAddr.value.trim();
   if (form.value.db_type === "consul") return !!consulServerAddr.value.trim();
   if (isCloudflareD1Connection(form.value)) return hasCloudflareD1Credentials(form.value);
@@ -3949,6 +3965,18 @@ function connectionConfigForSubmit(id: string, generatedName = ""): ConnectionCo
       }
       config.external_config = buildCassandraExternalConfig(cassandraTls);
     }
+  } else if (config.db_type === "jenkins") {
+    const url = new URL(jenkinsServerAddr.value.trim());
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error(t("jenkins.invalidUrl"));
+    config.external_config = { serverAddr: url.toString(), tlsSkipVerify: jenkinsTlsSkipVerify.value };
+    config.host = url.hostname;
+    config.port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+    config.ssl = url.protocol === "https:";
+    config.database = undefined;
+    config.connection_string = undefined;
+    config.url_params = "";
+    config.username = config.username.trim();
+    if (!config.username) config.password = "";
   } else if (config.db_type === "nacos") {
     const nacosConfig = buildNacosAdminConfig();
     config.external_config = nacosConfig;
@@ -5998,7 +6026,7 @@ function openExternalUrl(url: string) {
 
             <TabsContent value="connection" class="m-0 flex min-h-0 flex-1 flex-col overflow-hidden">
               <div class="connection-form-body grid min-h-0 flex-1 scroll-pb-6 gap-4 overflow-y-auto pt-4 pr-2 pb-6" :class="{ 'connection-form-body--nacos': form.db_type === 'nacos' }">
-                <div v-if="!isJdbcConnection && form.db_type !== 'nacos' && form.db_type !== 'consul' && form.db_type !== 'mq'" class="grid grid-cols-4 items-center gap-4">
+                <div v-if="!isJdbcConnection && form.db_type !== 'jenkins' && form.db_type !== 'nacos' && form.db_type !== 'consul' && form.db_type !== 'mq'" class="grid grid-cols-4 items-center gap-4">
                   <Label :class="connectionLabelClass">{{ t("connection.connectionUrlOptional") }}</Label>
                   <div class="col-span-3 flex items-center gap-1">
                     <Input v-model="connectionUrlInput" class="flex-1" :placeholder="connectionUrlPlaceholder" @keydown.enter.prevent="applyConnectionUrl" />
@@ -6666,6 +6694,19 @@ function openExternalUrl(url: string) {
                   </div>
                 </template>
 
+                <template v-else-if="form.db_type === 'jenkins'">
+                  <div class="grid gap-4 rounded-lg border p-4">
+                    <Label>{{ t("jenkins.serverUrl") }}</Label>
+                    <Input v-model="jenkinsServerAddr" placeholder="https://ci.example.com/jenkins" />
+                    <Label>{{ t("jenkins.username") }}</Label>
+                    <Input v-model="form.username" autocomplete="username" />
+                    <Label>API Token</Label>
+                    <PasswordInput v-model="form.password" />
+                    <p class="text-xs text-muted-foreground">{{ t("jenkins.authHint") }}</p>
+                    <label class="flex items-center gap-2 text-sm"><input v-model="form.save_password" type="checkbox" />{{ t("connection.savePassword") }}</label>
+                    <label class="flex items-center gap-2 text-sm"><input v-model="jenkinsTlsSkipVerify" type="checkbox" />{{ t("jenkins.skipTls") }}</label>
+                  </div>
+                </template>
                 <!-- Nacos: profile-aware endpoint, namespace and auth -->
                 <template v-else-if="form.db_type === 'nacos'">
                   <section data-nacos-profile-selector class="overflow-hidden rounded-lg border bg-muted/10">

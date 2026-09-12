@@ -1,3 +1,4 @@
+import { jenkinsEn } from "./jenkins";
 import { redisGroupingEn as redisGrouping } from "./redisGrouping";
 import docs from "./docs/en";
 import { consulUiMessages } from "./consulUi";
@@ -80,6 +81,7 @@ const consul = {
 };
 
 export default {
+  jenkins: jenkinsEn,
   cellTransform: {
     title: "Convert preview",
     description: "Convert the current value for viewing or copying. The source value and editor draft stay unchanged.",

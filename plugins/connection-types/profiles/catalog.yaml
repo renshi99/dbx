@@ -755,3 +755,11 @@ profiles:
     urlParams: ""
     category: sql
     pickerLabel: Custom (PostgreSQL)
+
+  - id: jenkins
+    dbType: jenkins
+    label: Jenkins
+    icon: jenkins
+    port: 8080
+    user: ""
+    category: registry_config
