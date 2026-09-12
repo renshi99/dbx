@@ -2317,6 +2317,7 @@ export const useQueryStore = defineStore("query", () => {
       whereInput: t.whereInput,
       pinned: t.pinned,
       mode: t.mode,
+      xxljobViewState: t.xxljobViewState,
       autoCommit: t.autoCommit,
       resultAutoSave: t.resultAutoSave,
       uiState: t.uiState,
@@ -2904,6 +2905,15 @@ export const useQueryStore = defineStore("query", () => {
       mode: "xugu-dashboard",
     };
     return registerOpenTab(tab);
+  }
+
+  function openXxlJob(connectionId: string) {
+    const existing = tabs.value.find((tab) => tab.mode === "xxljob" && tab.connectionId === connectionId);
+    if (existing) {
+      switchTab(existing.id);
+      return existing.id;
+    }
+    return registerOpenTab({ id: uuid(), title: `${useConnectionStore().getConfig(connectionId)?.name || "XXL-JOB"} - XXL-JOB`, connectionId, database: "", sql: "", isExecuting: false, isCancelling: false, isExplaining: false, mode: "xxljob" });
   }
 
   function openJenkins(connectionId: string) {
@@ -3792,6 +3802,7 @@ export const useQueryStore = defineStore("query", () => {
       mode: original.mode,
       mqTenant: original.mqTenant,
       mqInitialTab: original.mqInitialTab,
+      xxljobViewState: original.xxljobViewState ? { ...original.xxljobViewState } : undefined,
       nacosNamespace: original.nacosNamespace,
       nacosNamespaceName: original.nacosNamespaceName,
       structureTableName: original.structureTableName,
@@ -8090,6 +8101,7 @@ export const useQueryStore = defineStore("query", () => {
     openPostgresDashboard,
     openXuguDashboard,
     openJenkins,
+    openXxlJob,
     openNacosDashboard,
     openDamengUsers,
     openDamengRoles,

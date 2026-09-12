@@ -808,6 +808,7 @@ async fn main() {
         .route("/hbase/delete-table", post(routes::hbase::delete_table))
         // Nacos
         .route("/jenkins/request", post(routes::jenkins::request))
+        .route("/xxljob/request", post(routes::xxljob::request))
         .route("/nacos/test-connection", post(routes::nacos::test_connection))
         .route("/nacos/namespaces/list", post(routes::nacos::list_namespaces))
         .route("/nacos/sidebar/snapshot", post(routes::nacos::sidebar_snapshot))

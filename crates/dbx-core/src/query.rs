@@ -2108,6 +2108,7 @@ async fn do_execute_typed(
         #[cfg(feature = "mq-admin")]
         PoolKind::Mqtt(_) => Err("Use MQTT-specific commands".to_string()),
         PoolKind::Jenkins(_) => Err("Use Jenkins-specific commands".into()),
+        PoolKind::XxlJob(_) => Err("Use XXL-JOB-specific commands".into()),
         PoolKind::Nacos => Err("Use Nacos-specific commands".to_string()),
         PoolKind::InfluxDb(client) => {
             let client = client.clone();
@@ -4010,6 +4011,7 @@ fn pool_kind_has_transactional_path(pool: &PoolKind) -> bool {
         | PoolKind::Agent(_) => true,
         PoolKind::MessageQueue
         | PoolKind::Jenkins(_)
+        | PoolKind::XxlJob(_)
         | PoolKind::Nacos
         | PoolKind::Consul(_)
         | PoolKind::HBase(_)
@@ -4374,9 +4376,12 @@ fn batch_transaction_path(pool: &PoolKind) -> BatchTransactionPath {
         PoolKind::Sqlite(pool) => BatchTransactionPath::Sqlite(pool.clone()),
         PoolKind::SqlServer(_) => BatchTransactionPath::Explicit,
         PoolKind::Agent(client) => BatchTransactionPath::Agent(client.clone()),
-        PoolKind::MessageQueue | PoolKind::Jenkins(_) | PoolKind::Nacos | PoolKind::Consul(_) | PoolKind::HBase(_) => {
-            BatchTransactionPath::Unsupported
-        }
+        PoolKind::MessageQueue
+        | PoolKind::Jenkins(_)
+        | PoolKind::XxlJob(_)
+        | PoolKind::Nacos
+        | PoolKind::Consul(_)
+        | PoolKind::HBase(_) => BatchTransactionPath::Unsupported,
         #[cfg(feature = "mq-admin")]
         PoolKind::Mqtt(_) => BatchTransactionPath::Unsupported,
         PoolKind::DuckDbWorker(_)

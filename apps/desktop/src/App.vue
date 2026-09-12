@@ -2320,6 +2320,8 @@ async function newQuery() {
       await connectionStore.ensureConnected(target.connectionId);
       if (connectionTarget.kind === "mq-admin") {
         queryStore.openMqAdmin(target.connectionId);
+      } else if (connectionTarget.kind === "xxljob") {
+        queryStore.openXxlJob(target.connectionId);
       } else if (connectionTarget.kind === "jenkins") {
         queryStore.openJenkins(target.connectionId);
       } else if (connectionTarget.kind === "nacos-admin") {
@@ -2385,6 +2387,10 @@ async function openConnectionQuery(connectionId: string) {
   const initialTarget = quickConnectionOpenTarget(connection);
   if (initialTarget.kind === "mq-admin") {
     queryStore.openMqAdmin(connectionId);
+    return;
+  }
+  if (initialTarget.kind === "xxljob") {
+    queryStore.openXxlJob(connectionId);
     return;
   }
   if (initialTarget.kind === "jenkins") {

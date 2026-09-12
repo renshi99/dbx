@@ -94,6 +94,7 @@ export const DATABASE_PROPERTY_EDITING_MATRIX = {
   victoriametrics: { deferred: "metric and retention settings are managed by VictoriaMetrics deployment configuration" },
   jdbc: { deferred: "generic JDBC does not expose reliable dialect-specific properties" },
   mq: { deferred: "message queue namespaces are handled by MQ admin panels" },
+  xxljob: { deferred: "XXL-JOB uses a dedicated task workspace" },
   jenkins: { deferred: "Jenkins uses a dedicated build workspace" },
   nacos: { deferred: "Nacos namespace editing already uses the Nacos admin flow" },
   consul: { deferred: "Consul KV scopes are configured on the connection" },

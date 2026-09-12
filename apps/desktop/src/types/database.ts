@@ -975,6 +975,7 @@ export type TreeNodeType =
   | "subpartition"
   | "redis-db"
   | "mq-tenant"
+  | "xxljob-root"
   | "jenkins-root"
   | "nacos-namespace"
   | "nacos-access-control"
@@ -1257,6 +1258,7 @@ export interface QueryTab {
   isExplaining?: boolean;
   explainExecutionId?: string;
   /** Per-run connection session for explain flows that require session state. */
+  xxljobViewState?: import("./xxljob").XxlJobViewState;
   explainClientSessionId?: string;
   /** Invalidates tab-scoped completion metadata after session context changes. */
   completionContextVersion?: number;
@@ -1280,6 +1282,7 @@ export interface QueryTab {
     | "consul-overview"
     | "mq"
     | "mqtt"
+    | "xxljob"
     | "jenkins"
     | "nacos"
     | "nacos-dashboard"

@@ -763,3 +763,12 @@ profiles:
     port: 8080
     user: ""
     category: registry_config
+
+  - id: xxljob
+    dbType: xxljob
+    label: XXL-JOB
+    icon: xxljob
+    port: 8080
+    user: admin
+    host: 127.0.0.1
+    category: registry_config

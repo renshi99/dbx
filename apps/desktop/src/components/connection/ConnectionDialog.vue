@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { newXxlJobConfig, normalizeXxlJobConfig, parseExecutorScopes } from "@/lib/xxljob/xxljob";
+import type { XxlJobConfig } from "@/types/xxljob";
 import type { ObjectDirective } from "vue";
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { uuid } from "@/lib/common/utils";
@@ -918,6 +920,9 @@ const nacosImplementation = ref<NacosImplementation>("nacos");
 // choose an explicit version instead of relying on endpoint-shape guessing.
 const nacosVersionMode = ref<NacosVersionMode>("v2");
 const nacosApiPlane = ref<NacosApiPlane>("admin");
+const xxljobConfig = ref(newXxlJobConfig());
+const xxljobExecutorText = ref("");
+watch([xxljobConfig, xxljobExecutorText], () => resetTestState(), { deep: true });
 const jenkinsServerAddr = ref("http://127.0.0.1:8080");
 const jenkinsTlsSkipVerify = ref(false);
 watch([jenkinsServerAddr, jenkinsTlsSkipVerify], () => resetTestState());
@@ -2439,6 +2444,13 @@ function applyProfile(val: string, preserveConnectionFields = false) {
       form.value.client_cert_path = "";
       form.value.client_key_path = "";
     }
+    if (profile.type === "xxljob") {
+      xxljobConfig.value = newXxlJobConfig();
+      xxljobExecutorText.value = "";
+      form.value.username = "admin";
+      form.value.password = "";
+      form.value.database = undefined;
+    }
     if (profile.type === "jenkins") {
       jenkinsServerAddr.value = "http://127.0.0.1:8080";
       jenkinsTlsSkipVerify.value = false;
@@ -2593,6 +2605,10 @@ watch(
         resetMqFields();
       }
       resetCassandraTlsFields(config.db_type === "cassandra" ? config.external_config : undefined);
+      if (config.db_type === "xxljob") {
+        xxljobConfig.value = { ...newXxlJobConfig(), ...(config.external_config as Partial<XxlJobConfig>) };
+        xxljobExecutorText.value = xxljobConfig.value.executors.map((e) => `${e.id} ${e.title}`.trim()).join("\n");
+      }
       if (config.db_type === "jenkins") {
         const value = config.external_config as { serverAddr?: string; tlsSkipVerify?: boolean } | undefined;
         jenkinsServerAddr.value = value?.serverAddr || "http://127.0.0.1:8080";
@@ -3472,6 +3488,7 @@ const hasRequiredConnectionTarget = computed(() => {
   }
   if (form.value.db_type === "zookeeper") return !!(form.value.host || form.value.connection_string || connectionUrlInput.value.trim());
   if (form.value.db_type === "mqtt") return !!mqttHost.value.trim() && mqttPort.value > 0;
+  if (form.value.db_type === "xxljob") return !!xxljobConfig.value.serverAddr.trim() && !!form.value.username.trim();
   if (form.value.db_type === "jenkins") return !!jenkinsServerAddr.value.trim();
   if (form.value.db_type === "nacos") return !!nacosServerAddr.value.trim();
   if (form.value.db_type === "consul") return !!consulServerAddr.value.trim();
@@ -3965,6 +3982,17 @@ function connectionConfigForSubmit(id: string, generatedName = ""): ConnectionCo
       }
       config.external_config = buildCassandraExternalConfig(cassandraTls);
     }
+  } else if (config.db_type === "xxljob") {
+    const cfg = normalizeXxlJobConfig({ ...xxljobConfig.value, executors: xxljobConfig.value.executorMode === "manual" ? parseExecutorScopes(xxljobExecutorText.value) : [] });
+    const url = new URL(cfg.serverAddr);
+    config.external_config = cfg;
+    config.host = url.hostname;
+    config.port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+    config.ssl = url.protocol === "https:";
+    config.username = config.username.trim();
+    config.database = undefined;
+    config.connection_string = undefined;
+    config.url_params = "";
   } else if (config.db_type === "jenkins") {
     const url = new URL(jenkinsServerAddr.value.trim());
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error(t("jenkins.invalidUrl"));
@@ -6026,7 +6054,7 @@ function openExternalUrl(url: string) {
 
             <TabsContent value="connection" class="m-0 flex min-h-0 flex-1 flex-col overflow-hidden">
               <div class="connection-form-body grid min-h-0 flex-1 scroll-pb-6 gap-4 overflow-y-auto pt-4 pr-2 pb-6" :class="{ 'connection-form-body--nacos': form.db_type === 'nacos' }">
-                <div v-if="!isJdbcConnection && form.db_type !== 'jenkins' && form.db_type !== 'nacos' && form.db_type !== 'consul' && form.db_type !== 'mq'" class="grid grid-cols-4 items-center gap-4">
+                <div v-if="!isJdbcConnection && form.db_type !== 'xxljob' && form.db_type !== 'jenkins' && form.db_type !== 'nacos' && form.db_type !== 'consul' && form.db_type !== 'mq'" class="grid grid-cols-4 items-center gap-4">
                   <Label :class="connectionLabelClass">{{ t("connection.connectionUrlOptional") }}</Label>
                   <div class="col-span-3 flex items-center gap-1">
                     <Input v-model="connectionUrlInput" class="flex-1" :placeholder="connectionUrlPlaceholder" @keydown.enter.prevent="applyConnectionUrl" />
@@ -6694,6 +6722,35 @@ function openExternalUrl(url: string) {
                   </div>
                 </template>
 
+                <template v-else-if="form.db_type === 'xxljob'">
+                  <div class="grid gap-3 rounded-lg border p-4">
+                    <Label>{{ t("xxljob.serverUrl") }}</Label>
+                    <Input v-model="xxljobConfig.serverAddr" placeholder="https://scheduler.example.com/xxl-job-admin" />
+                    <Label>{{ t("xxljob.version") }}</Label>
+                    <Select v-model="xxljobConfig.version"
+                      ><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="2.4">2.4.x</SelectItem><SelectItem value="2.5">2.5.x</SelectItem></SelectContent></Select
+                    >
+                    <Label>{{ t("xxljob.username") }}</Label
+                    ><Input v-model="form.username" autocomplete="username" /> <Label>{{ t("xxljob.password") }}</Label
+                    ><PasswordInput v-model="form.password" />
+                    <p class="text-xs text-muted-foreground">{{ t("xxljob.authHint") }}</p>
+                    <label class="flex items-center gap-2 text-sm"><input v-model="form.save_password" type="checkbox" />{{ t("connection.savePassword") }}</label>
+                    <Label>{{ t("xxljob.executorMode") }}</Label>
+                    <Select v-model="xxljobConfig.executorMode"
+                      ><SelectTrigger><SelectValue /></SelectTrigger
+                      ><SelectContent
+                        ><SelectItem value="automatic">{{ t("xxljob.automatic") }}</SelectItem
+                        ><SelectItem value="manual">{{ t("xxljob.manual") }}</SelectItem></SelectContent
+                      ></Select
+                    >
+                    <template v-if="xxljobConfig.executorMode === 'manual'"
+                      ><Label>{{ t("xxljob.executorScope") }}</Label
+                      ><textarea v-model="xxljobExecutorText" class="min-h-24 rounded-md border bg-background p-2 text-sm" :placeholder="t('xxljob.scopeHint')" />
+                      <p class="text-xs text-muted-foreground">{{ t("xxljob.scopeHint") }}</p></template
+                    >
+                    <label class="flex items-center gap-2 text-sm"><input v-model="xxljobConfig.tlsSkipVerify" type="checkbox" />{{ t("xxljob.skipTls") }}</label>
+                  </div>
+                </template>
                 <template v-else-if="form.db_type === 'jenkins'">
                   <div class="grid gap-4 rounded-lg border p-4">
                     <Label>{{ t("jenkins.serverUrl") }}</Label>

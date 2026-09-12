@@ -1,3 +1,4 @@
+import { xxljobZh } from "./xxljob";
 import { jenkinsZh } from "./jenkins";
 import { redisGroupingZhCN as redisGrouping } from "./redisGrouping";
 import { withEnglishFallback } from "./fallback";
@@ -6,6 +7,7 @@ import { consul } from "./consulZhCN";
 import { meilisearchManagementZhCN } from "./meilisearchManagement";
 
 export default withEnglishFallback({
+  xxljob: xxljobZh,
   jenkins: jenkinsZh,
   cellTransform: {
     title: "转换预览",

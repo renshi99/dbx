@@ -50,6 +50,7 @@ export interface SavedOpenTab {
   autoCommit?: boolean;
   mqTenant?: string;
   mqInitialTab?: QueryTab["mqInitialTab"];
+  xxljobViewState?: QueryTab["xxljobViewState"];
   nacosNamespace?: string;
   nacosNamespaceName?: string;
   structureTableName?: string;
@@ -180,6 +181,7 @@ export function serializeOpenTabs(tabs: QueryTab[]): SavedOpenTab[] {
     ...(tab.whereInput !== undefined ? { whereInput: tab.whereInput } : {}),
     pinned: tab.pinned,
     mode: tab.mode,
+    ...(tab.mode === "xxljob" && tab.xxljobViewState ? { xxljobViewState: { ...tab.xxljobViewState } } : {}),
     ...(tab.mode === "query" && tab.autoCommit !== undefined ? { autoCommit: tab.autoCommit } : {}),
     ...(tab.mqTenant !== undefined ? { mqTenant: tab.mqTenant } : {}),
     ...(tab.mqInitialTab !== undefined ? { mqInitialTab: tab.mqInitialTab } : {}),

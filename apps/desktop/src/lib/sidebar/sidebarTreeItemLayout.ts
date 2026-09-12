@@ -25,6 +25,7 @@ const leafTypes: Set<TreeNodeType> = new Set([
   "nacos-access-control",
   "zookeeper-root",
   "consul-root",
+  "xxljob-root",
   "jenkins-root",
   "consul-overview",
   "mongo-gridfs",
