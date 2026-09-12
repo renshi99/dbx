@@ -1524,6 +1524,12 @@ async fn test_connection_with_info_inner(
                     db::victoriametrics_driver::database_connection_info(&client, connect_timeout).await.ok();
                 Ok("Connection successful".to_string())
             }
+            DatabaseType::Jenkins => {
+                let transport = config.has_effective_transport_layers().then_some((host.as_str(), port));
+                let info = dbx_core::jenkins::JenkinsClient::new(&config, transport)?.probe().await?;
+                database_info = Some(dbx_core::jenkins::database_info(&info));
+                Ok("Connection successful".to_string())
+            }
             DatabaseType::Nacos => {
                 let admin_config = state.nacos_admin_config_for_connection(connection_id, &config).await?;
                 let adapter = state.nacos_registry.build_transient_config(admin_config).await?;
@@ -1955,6 +1961,12 @@ pub async fn connect_db(
                 db::victoriametrics_driver::VictoriaMetricsClient::new_for_config(&url, &db_config, connect_timeout)?;
             db::victoriametrics_driver::test_connection(&client, connect_timeout).await?;
             PoolKind::VictoriaMetrics(client)
+        }
+        DatabaseType::Jenkins => {
+            let transport = config.has_effective_transport_layers().then_some((host.as_str(), port));
+            let client = dbx_core::jenkins::JenkinsClient::new(&db_config, transport)?;
+            client.probe().await?;
+            PoolKind::Jenkins(client)
         }
         DatabaseType::Nacos => {
             let admin_config = state.nacos_admin_config_for_connection(&id, &config).await?;

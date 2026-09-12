@@ -3793,6 +3793,8 @@ export const useConnectionStore = defineStore("connection", () => {
       await loadEtcdRoot(connectionId);
     } else if (config.db_type === "zookeeper") {
       await loadZooKeeperRoot(connectionId);
+    } else if (config.db_type === "jenkins") {
+      await loadJenkinsRoot(connectionId);
     } else if (config.db_type === "consul") {
       await loadConsulRoot(connectionId);
     } else if (config.db_type === "mongodb") {
@@ -4701,6 +4703,14 @@ export const useConnectionStore = defineStore("connection", () => {
       );
       targetNode.isExpanded = true;
     });
+  }
+
+  async function loadJenkinsRoot(connectionId: string) {
+    await ensureConnected(connectionId);
+    const node = findConnectionNode(connectionId);
+    if (!node) return;
+    setChildren(node, [{ id: `${connectionId}:jenkins-root`, label: "Jenkins", type: "jenkins-root", connectionId, database: "", children: [], isExpanded: false }]);
+    node.isExpanded = true;
   }
 
   async function loadConsulRoot(connectionId: string) {
@@ -6710,6 +6720,8 @@ export const useConnectionStore = defineStore("connection", () => {
         await loadEtcdRoot(node.connectionId);
       } else if (config?.db_type === "zookeeper") {
         await loadZooKeeperRoot(node.connectionId);
+      } else if (config?.db_type === "jenkins") {
+        await loadJenkinsRoot(node.connectionId);
       } else if (config?.db_type === "consul") {
         await loadConsulRoot(node.connectionId);
       } else if (config?.db_type === "mongodb") {
@@ -9062,6 +9074,7 @@ export const useConnectionStore = defineStore("connection", () => {
     refreshRedisDbKeyCounts,
     loadEtcdRoot,
     loadZooKeeperRoot,
+    loadJenkinsRoot,
     loadConsulRoot,
     loadMqTenants,
     loadMqttTopics,

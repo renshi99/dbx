@@ -94,6 +94,7 @@ export const DATABASE_NAMESPACE_CREATION_MATRIX = {
   victoriametrics: { deferred: "metric namespaces are managed by VictoriaMetrics deployment configuration" },
   jdbc: { deferred: "generic JDBC does not expose a reliable dialect-specific create target" },
   mq: { deferred: "message queue namespaces are handled by MQ admin panels" },
+  jenkins: { deferred: "Jenkins uses a dedicated build workspace" },
   nacos: { deferred: "Nacos namespace creation already uses the Nacos admin flow" },
   consul: { deferred: "Consul namespaces and partitions are connection scopes, not KV resources" },
   mqtt: { deferred: "MQTT topics are managed via the MQTT console" },

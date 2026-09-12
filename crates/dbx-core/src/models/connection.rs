@@ -1175,6 +1175,7 @@ impl ConnectionConfig {
             DatabaseType::Jdbc => "jdbc:<redacted>".to_string(),
             DatabaseType::MessageQueue => self.message_queue_admin_url(),
             DatabaseType::Mqtt => self.mqtt_broker_url(),
+            DatabaseType::Jenkins => self.jenkins_api_url(),
             DatabaseType::Nacos => self.nacos_admin_url(),
             DatabaseType::Consul => self.consul_api_url(),
         }
@@ -1453,6 +1454,7 @@ impl ConnectionConfig {
             }
             DatabaseType::MessageQueue => self.message_queue_admin_url(),
             DatabaseType::Mqtt => self.mqtt_broker_url(),
+            DatabaseType::Jenkins => self.jenkins_api_url(),
             DatabaseType::Nacos => self.nacos_admin_url(),
             DatabaseType::Consul => self.consul_api_url(),
         }
@@ -1497,6 +1499,12 @@ impl ConnectionConfig {
             .filter(|value| !value.is_empty())
             .unwrap_or("mq://")
             .to_string()
+    }
+
+    fn jenkins_api_url(&self) -> String {
+        crate::jenkins::JenkinsConfig::from_connection(self)
+            .map(|config| config.server_addr)
+            .unwrap_or_else(|_| "jenkins://".to_string())
     }
 
     fn nacos_admin_url(&self) -> String {

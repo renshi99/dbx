@@ -2906,6 +2906,15 @@ export const useQueryStore = defineStore("query", () => {
     return registerOpenTab(tab);
   }
 
+  function openJenkins(connectionId: string) {
+    const existing = tabs.value.find((tab) => tab.mode === "jenkins" && tab.connectionId === connectionId);
+    if (existing) {
+      switchTab(existing.id);
+      return existing.id;
+    }
+    return registerOpenTab({ id: uuid(), title: `${useConnectionStore().getConfig(connectionId)?.name || "Jenkins"} - Jenkins`, connectionId, database: "", sql: "", isExecuting: false, isCancelling: false, isExplaining: false, mode: "jenkins" });
+  }
+
   function openNacosDashboard(connectionId: string) {
     const existing = tabs.value.find((tab) => tab.mode === "nacos-dashboard" && tab.connectionId === connectionId);
     if (existing) {
@@ -8080,6 +8089,7 @@ export const useQueryStore = defineStore("query", () => {
     openMysqlDashboard,
     openPostgresDashboard,
     openXuguDashboard,
+    openJenkins,
     openNacosDashboard,
     openDamengUsers,
     openDamengRoles,

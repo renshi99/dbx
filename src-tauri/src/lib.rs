@@ -2146,6 +2146,7 @@ pub fn run() {
             commands::consul_cmd::consul_mesh_peering_delete,
             commands::consul_cmd::consul_mesh_exported_services_list,
             commands::consul_cmd::consul_mesh_exported_services_apply,
+            commands::jenkins_cmd::jenkins_request,
             commands::nacos_cmd::nacos_test_connection,
             commands::nacos_cmd::nacos_list_namespaces,
             commands::nacos_cmd::nacos_sidebar_snapshot,

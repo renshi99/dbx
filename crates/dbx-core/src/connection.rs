@@ -115,6 +115,7 @@ pub enum PoolKind {
     MessageQueue,
     /// Nacos admin connection marker.
     Nacos,
+    Jenkins(crate::jenkins::JenkinsClient),
     Consul(crate::consul::ConsulClient),
     /// MQTT broker connection with an active client.
     #[cfg(feature = "mq-admin")]
@@ -231,6 +232,7 @@ enum ConnectionDatabaseInfoSource {
     VictoriaMetrics(db::victoriametrics_driver::VictoriaMetricsClient),
     Redis(String),
     Nacos,
+    Jenkins(crate::jenkins::JenkinsClient),
     Consul(Box<crate::consul::ConsulClient>),
     #[cfg(feature = "mq-admin")]
     MessageQueue,
@@ -2543,6 +2545,12 @@ impl AppState {
                 db::victoriametrics_driver::test_connection(&client, connect_timeout).await?;
                 PoolKind::VictoriaMetrics(client)
             }
+            DatabaseType::Jenkins => {
+                let transport = config.has_effective_transport_layers().then_some((host.as_str(), port));
+                let client = crate::jenkins::JenkinsClient::new(&db_config, transport)?;
+                client.probe().await?;
+                PoolKind::Jenkins(client)
+            }
             DatabaseType::Nacos => {
                 let admin_config = self.nacos_admin_config_for_connection(connection_id, &config).await?;
                 let adapter = self.nacos_registry.build_transient_config(admin_config).await?;
@@ -3831,6 +3839,7 @@ impl AppState {
                 | PoolKind::DuckDbWorker(_)
                 | PoolKind::ExternalDriver { .. }
                 | PoolKind::MessageQueue
+                | PoolKind::Jenkins(_)
                 | PoolKind::Nacos
                 | PoolKind::Consul(_) => false,
                 #[cfg(feature = "mq-admin")]
@@ -4500,6 +4509,7 @@ impl AppState {
                     Some(ConnectionDatabaseInfoSource::VictoriaMetrics(client.clone()))
                 }
                 Some(PoolKind::Redis(_)) => Some(ConnectionDatabaseInfoSource::Redis(pool_key.clone())),
+                Some(PoolKind::Jenkins(client)) => Some(ConnectionDatabaseInfoSource::Jenkins(client.clone())),
                 Some(PoolKind::Nacos) => Some(ConnectionDatabaseInfoSource::Nacos),
                 Some(PoolKind::Consul(client)) => Some(ConnectionDatabaseInfoSource::Consul(Box::new(client.clone()))),
                 #[cfg(feature = "mq-admin")]
@@ -4553,6 +4563,9 @@ impl AppState {
                 Some(PoolKind::Redis(redis)) => db::redis_driver::database_connection_info(redis).await.map(Some),
                 _ => Ok(None),
             },
+            Some(ConnectionDatabaseInfoSource::Jenkins(client)) => {
+                Ok(Some(crate::jenkins::database_info(&client.probe().await?)))
+            }
             Some(ConnectionDatabaseInfoSource::Nacos) => {
                 let admin_config = self.nacos_admin_config_for_connection(connection_id, &config).await?;
                 let admin = self.nacos_registry.get_or_build_config(connection_id, admin_config).await?;
@@ -4865,6 +4878,7 @@ impl AppState {
                 | PoolKind::DuckDbWorker(_)
                 | PoolKind::ExternalDriver { .. }
                 | PoolKind::MessageQueue
+                | PoolKind::Jenkins(_)
                 | PoolKind::Nacos
                 | PoolKind::Consul(_) => true,
                 #[cfg(feature = "mq-admin")]
@@ -5290,6 +5304,12 @@ fn connection_remote_endpoint(config: &ConnectionConfig) -> (String, u16) {
         parse_mq_admin_host_port(config).unwrap_or_else(|| (config.host.clone(), config.port))
     } else if config.db_type == DatabaseType::Mqtt {
         parse_mqtt_broker_host_port(config).unwrap_or_else(|| (config.host.clone(), config.port))
+    } else if config.db_type == DatabaseType::Jenkins {
+        crate::jenkins::JenkinsConfig::from_connection(config)
+            .ok()
+            .and_then(|c| reqwest::Url::parse(&c.server_addr).ok())
+            .and_then(|u| Some((u.host_str()?.to_string(), u.port_or_known_default()?)))
+            .unwrap_or_else(|| (config.host.clone(), config.port))
     } else if config.db_type == DatabaseType::Nacos {
         parse_nacos_server_host_port(config).unwrap_or_else(|| (config.host.clone(), config.port))
     } else if config.db_type == DatabaseType::Consul {
@@ -5669,6 +5689,7 @@ async fn close_pool_kind(pool: PoolKind) -> Result<(), String> {
             session.shutdown().await;
         }
         PoolKind::MessageQueue => {}
+        PoolKind::Jenkins(_) => {}
         PoolKind::Nacos => {}
         PoolKind::Consul(_) => {}
         #[cfg(feature = "mq-admin")]

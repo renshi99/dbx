@@ -1,3 +1,4 @@
+import { jenkinsZh } from "./jenkins";
 import { redisGroupingZhCN as redisGrouping } from "./redisGrouping";
 import { withEnglishFallback } from "./fallback";
 import docs from "./docs/zh-CN";
@@ -5,6 +6,7 @@ import { consul } from "./consulZhCN";
 import { meilisearchManagementZhCN } from "./meilisearchManagement";
 
 export default withEnglishFallback({
+  jenkins: jenkinsZh,
   cellTransform: {
     title: "转换预览",
     description: "将当前内容转换后查看或复制，不改变原值和编辑草稿。",

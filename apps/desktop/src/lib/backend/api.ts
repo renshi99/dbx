@@ -1017,3 +1017,14 @@ export const mqttListSavedTopicConfigs = forward("mqttListSavedTopicConfigs");
 export const mqttGetTopicTree = forward("mqttGetTopicTree");
 export const mqttGetMessages = forward("mqttGetMessages");
 export const mqttClearMessages = forward("mqttClearMessages");
+
+export const jenkinsTestConnection = forward("jenkinsTestConnection");
+export const jenkinsListJobs = forward("jenkinsListJobs");
+export const jenkinsGetJob = forward("jenkinsGetJob");
+export const jenkinsListBuilds = forward("jenkinsListBuilds");
+export const jenkinsGetBuild = forward("jenkinsGetBuild");
+export const jenkinsGetBuildLog = forward("jenkinsGetBuildLog");
+export const jenkinsTriggerBuild = forward("jenkinsTriggerBuild");
+export const jenkinsGetQueueItem = forward("jenkinsGetQueueItem");
+export const jenkinsCancelQueueItem = forward("jenkinsCancelQueueItem");
+export const jenkinsStopBuild = forward("jenkinsStopBuild");

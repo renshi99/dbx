@@ -1,0 +1,31 @@
+schemaVersion: 1
+order: 795
+dbType: jenkins
+rustVariant: Jenkins
+label: Jenkins
+runtimeMode: native
+mcpMode: unsupported
+singleConnectionPool: false
+metadataConnectionScoped: false
+skipTcpProbe: false
+defaultPort: 8080
+formKind: jenkins
+supportLevel: connect
+specializedSurface: true
+capabilities:
+  queryExecution: false
+  metadataBrowse: false
+  objectBrowser: false
+  objectSource: false
+  schemaSearch: false
+  diagram: false
+  tableDataEdit: false
+  tableStructureEdit: false
+  tableImport: false
+  dataTransfer: false
+  sqlFileExecution: false
+  databaseCreate: false
+  fieldLineage: false
+  sqlExplain: false
+  userAdmin: false
+  driverManagement: false

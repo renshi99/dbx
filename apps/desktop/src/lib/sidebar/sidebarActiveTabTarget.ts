@@ -3,6 +3,7 @@ import { tableMetaForDataTab } from "@/lib/table/tableDataTabMeta";
 import type { QueryTab, TreeNode } from "@/types/database";
 
 export type ActiveTabSidebarTarget =
+  | { type: "jenkins-root"; connectionId: string }
   | {
       type: "connection";
       connectionId: string;
@@ -209,6 +210,7 @@ export function activeTabSidebarTarget(tab: QueryTab | undefined | null): Active
   if (tab.mode === "zookeeper") {
     return { type: "zookeeper-root", connectionId: tab.connectionId };
   }
+  if (tab.mode === "jenkins") return { type: "jenkins-root", connectionId: tab.connectionId };
   if (tab.mode === "consul") {
     return { type: "consul-root", connectionId: tab.connectionId };
   }
@@ -308,6 +310,7 @@ export function matchesTarget(node: TreeNode, target: ActiveTabSidebarTarget): b
   if (target.type === "zookeeper-root") {
     return node.type === "zookeeper-root" && node.connectionId === target.connectionId;
   }
+  if (target.type === "jenkins-root") return node.type === "jenkins-root" && node.connectionId === target.connectionId;
   if (target.type === "consul-root") {
     return node.type === "consul-root" && node.connectionId === target.connectionId;
   }

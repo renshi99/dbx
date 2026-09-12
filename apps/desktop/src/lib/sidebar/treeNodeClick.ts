@@ -20,6 +20,7 @@ const toggleLeafNodeTypes = new Set<TreeNodeType>([
   "nacos-access-control",
   "zookeeper-root",
   "consul-root",
+  "jenkins-root",
   "consul-overview",
   "mongo-gridfs",
   "mongo-collection",
@@ -35,7 +36,7 @@ const toggleLeafNodeTypes = new Set<TreeNodeType>([
 // These are application entry points rather than database objects. They should
 // always navigate on a single click, even when the user prefers double-click
 // activation for ordinary tree objects.
-const directNavigationTreeNodeTypes = new Set<TreeNodeType>(["consul-root", "consul-overview", "etcd-root", "etcd-dashboard", "etcd-access-control", "nacos-namespace", "nacos-access-control", "meilisearch-system"]);
+const directNavigationTreeNodeTypes = new Set<TreeNodeType>(["consul-root", "jenkins-root", "consul-overview", "etcd-root", "etcd-dashboard", "etcd-access-control", "nacos-namespace", "nacos-access-control", "meilisearch-system"]);
 const repeatableNavigationTreeNodeTypes = new Set<TreeNodeType>(["etcd-root", "etcd-dashboard", "etcd-access-control", "nacos-namespace", "nacos-access-control"]);
 
 export function isDirectNavigationTreeNode(type: TreeNodeType): boolean {
