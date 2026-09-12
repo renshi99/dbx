@@ -111,7 +111,7 @@ const assetIcons: Record<string, string> = {
   rocketmq: "rocketmq",
   rabbitmq: "rabbitmq",
   nacos: "nacos.png",
-  jenkins: "jenkins",
+  jenkins: "jenkins.png",
   consul: "consul",
   iris: "iris",
   cache: "iris",
