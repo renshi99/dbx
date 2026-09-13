@@ -1,0 +1,90 @@
+name: Build Dev Desktop
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-dev-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Package ${{ matrix.name }}
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            artifact: nsis/*.exe
+          - name: macos-arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+            artifact: dmg/*.dmg
+          - name: macos-x64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: dmg
+            artifact: dmg/*.dmg
+
+    env:
+      CARGO_INCREMENTAL: "0"
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          shared-key: dev-desktop-${{ matrix.target }}
+
+      # Development bundles do not require the production updater private key
+      # or Apple certificate. Ad-hoc signing supports Apple Silicon locally.
+      - name: Prepare development bundle configuration
+        run: >-
+          node -e "require('node:fs').writeFileSync('src-tauri/tauri.dev-build.conf.json', JSON.stringify({bundle:{createUpdaterArtifacts:false,macOS:{signingIdentity:'-'}}}))"
+
+      - name: Build desktop installer
+        run: >-
+          pnpm tauri build
+          --target ${{ matrix.target }}
+          --bundles ${{ matrix.bundles }}
+          --config src-tauri/tauri.dev-build.conf.json
+          -- --locked
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DBX-dev-${{ matrix.name }}-${{ github.run_number }}
+          path: target/${{ matrix.target }}/release/bundle/${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 14
