@@ -151,6 +151,17 @@ impl JenkinsClient {
     }
 
     async fn send(&self, method: Method, url: Url, form: Option<&[(String, String)]>) -> Result<Response, String> {
+        self.send_with_form_response(method, url, form, false).await
+    }
+
+    async fn send_with_form_response(
+        &self,
+        method: Method,
+        url: Url,
+        form: Option<&[(String, String)]>,
+        allow_build_form: bool,
+    ) -> Result<Response, String> {
+        let reading_build_form = allow_build_form && method == Method::GET;
         let write = method == Method::POST;
         let mut request = self.http.request(method, url);
         if !self.username.is_empty() {
@@ -168,6 +179,9 @@ impl JenkinsClient {
         })?;
         match response.status().as_u16() {
             200..=299 => Ok(response),
+            // Jenkins renders the parameter form with 405 for GET /build.
+            // Only the form reader accepts this; it validates the HTML below.
+            405 if reading_build_form => Ok(response),
             // Jenkins stop/cancel can redirect after accepting the POST. Do not follow it.
             302 | 303
                 if write
@@ -242,7 +256,7 @@ impl JenkinsClient {
     }
 
     async fn enrich_parameters(&self, path: &[String], job: &mut Value) -> Result<(), String> {
-        let response = self.send(Method::GET, self.endpoint(path, &["build"])?, None).await?;
+        let response = self.send_with_form_response(Method::GET, self.endpoint(path, &["build"])?, None, true).await?;
         let (bytes, truncated) = read_bytes(response, JSON_LIMIT).await?;
         if truncated {
             return Err("JENKINS_PARAMETER: Build form exceeds 16 MiB".into());

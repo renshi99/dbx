@@ -74,6 +74,32 @@ async fn native_build_preserves_array_and_scalar_types_and_queue() {
 }
 
 #[tokio::test]
+async fn reads_parameter_form_from_method_not_allowed_response() {
+    let (base, task) = server(vec![
+        response("200 OK", "", &checkbox_job().to_string()),
+        response("405 Method Not Allowed", "", CHECKBOX_FORM),
+    ]).await;
+    let job = client(&base).job(&["deploy".into()]).await.unwrap();
+    assert!(job.get("parameterError").is_none());
+    assert_eq!(job["parameterRevision"], checkbox_revision());
+    assert_eq!(parameter_definitions(&job)[1]["choices"], json!(["gateway", "支付&清算"]));
+    let requests = task.await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1].starts_with("GET /jenkins/job/deploy/build "));
+}
+
+#[tokio::test]
+async fn method_not_allowed_remains_an_error_for_other_requests() {
+    for method in [Method::GET, Method::POST] {
+        let (base, task) = server(vec![response("405 Method Not Allowed", "", CHECKBOX_FORM)]).await;
+        let c = client(&base);
+        let error = c.send(method, c.endpoint(&["deploy".into()], &["build"]).unwrap(), None).await.unwrap_err();
+        assert!(error.contains("HTTP 405"));
+        assert_eq!(task.await.unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
 async fn native_build_errors_never_post() {
     for (html, status, revision, values) in [
         (CHECKBOX_FORM.to_owned(), "200 OK", checkbox_revision(), json!(["unknown"])),
@@ -82,6 +108,7 @@ async fn native_build_errors_never_post() {
         (CHECKBOX_FORM.replace("gateway", "new-module"), "200 OK", checkbox_revision(), json!([])),
         (CHECKBOX_FORM.to_owned(), "200 OK", "old".into(), json!([])),
         ("<html>Login</html>".into(), "200 OK", checkbox_revision(), json!([])),
+        ("<html>Method Not Allowed</html>".into(), "405 Method Not Allowed", checkbox_revision(), json!([])),
         (String::new(), "403 Forbidden", checkbox_revision(), json!([])),
     ] {
         let (base, task) = server(vec![response("200 OK", "", &checkbox_job().to_string()), response(status, "", &html)]).await;
