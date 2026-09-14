@@ -17,7 +17,7 @@ struct Inner {
     password: String,
     authenticated: Mutex<bool>,
     closed: CancellationToken,
-    log_scope: Mutex<HashMap<i64, i32>>,
+    log_scope: Mutex<HashMap<i64, (i32, Value, String)>>,
     log_requests: Mutex<HashMap<String, CancellationToken>>,
 }
 
@@ -264,7 +264,11 @@ impl XxlJobClient {
         for row in result["items"].as_array().unwrap() {
             if row["jobGroup"].as_i64() == Some(i64::from(req.job_group)) {
                 if let Some(id) = row["id"].as_i64() {
-                    scope.insert(id, req.job_group);
+                    scope.insert(id, (
+                        req.job_group,
+                        row["triggerTime"].clone(),
+                        row["executorAddress"].as_str().unwrap_or_default().to_string(),
+                    ));
                 }
             }
         }
@@ -300,8 +304,22 @@ impl XxlJobClient {
     }
 
     async fn read_log_inner(&self, req: &XxlJobRequest) -> Result<Value, String> {
-        if self.0.log_scope.lock().await.get(&req.id).copied() != Some(req.job_group) {
-            return Err("XXLJOB_PERMISSION: Refresh this executor's log list before opening a log".into());
+        let (_, trigger_time, executor_address) = self.0.log_scope.lock().await.get(&req.id)
+            .filter(|(group, _, _)| *group == req.job_group)
+            .cloned()
+            .ok_or("XXLJOB_PERMISSION: Refresh this executor's log list before opening a log")?;
+        let trigger_time = trigger_time.as_i64().or_else(|| {
+            let text = trigger_time.as_str()?;
+            text.parse::<i64>().ok()
+                .or_else(|| chrono::DateTime::parse_from_rfc3339(text).ok().map(|time| time.timestamp_millis()))
+                .or_else(|| {
+                    chrono::NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M:%S%.f").ok()?
+                        .and_local_timezone(chrono::Local).single().map(|time| time.timestamp_millis())
+                })
+        }).filter(|time| *time > 0)
+            .ok_or("XXLJOB_PROTOCOL: Missing or invalid log trigger time")?;
+        if executor_address.trim().is_empty() {
+            return Err("XXLJOB_PROTOCOL: Missing log executor address".into());
         }
         self.check_group(req.job_group).await?;
         let from = req.from_line_num.unwrap_or(1);
@@ -311,7 +329,12 @@ impl XxlJobClient {
         let value = content(
             self.request(
                 "joblog/logDetailCat",
-                &vec![("logId".into(), req.id.to_string()), ("fromLineNum".into(), from.to_string())],
+                &vec![
+                    ("logId".into(), req.id.to_string()),
+                    ("fromLineNum".into(), from.to_string()),
+                    ("triggerTime".into(), trigger_time.to_string()),
+                    ("executorAddress".into(), executor_address),
+                ],
                 false,
             )
             .await?,

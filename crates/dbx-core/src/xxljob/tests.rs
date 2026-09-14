@@ -161,7 +161,7 @@ async fn log_reads_require_scoped_list_and_preserve_version_metadata() {
         let (base, task) = server(vec![
             login(),
             empty(),
-            ok(r#"{"data":[{"id":10,"jobGroup":1}],"recordsFiltered":1}"#),
+            ok(r#"{"data":[{"id":10,"jobGroup":1,"triggerTime":1700000000000,"executorAddress":"http://127.0.0.1:9999/"}],"recordsFiltered":1}"#),
             empty(),
             ok(r#"{"code":200,"content":{"fromLineNum":1,"toLineNum":2,"logContent":"&lt;script&gt;","end":true}}"#),
         ])
@@ -175,7 +175,9 @@ async fn log_reads_require_scoped_list_and_preserve_version_metadata() {
         assert_eq!(chunk["end"], true);
         assert_eq!(chunk["htmlEscaped"], version == "2.5");
         assert_eq!(chunk["text"], "&lt;script&gt;");
-        assert!(task.await.unwrap()[4].contains("logId=10&fromLineNum=1"));
+        let requests = task.await.unwrap();
+        assert!(requests[4].contains("logId=10&fromLineNum=1&triggerTime=1700000000000"));
+        assert!(requests[4].contains("executorAddress=http%3A%2F%2F127.0.0.1%3A9999%2F"));
     }
 }
 
