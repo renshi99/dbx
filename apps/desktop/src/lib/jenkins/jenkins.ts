@@ -1,4 +1,13 @@
-import type { JenkinsJob, JenkinsParameter } from "@/types/jenkins";
+import type { JenkinsJob, JenkinsParameter, JenkinsParameterValue } from "@/types/jenkins";
+
+export function isCheckboxParameter(parameter: JenkinsParameter): boolean {
+  return parameter._class === "com.cwctravel.hudson.plugins.extended_choice_parameter.ExtendedChoiceParameterDefinition" && parameter.type === "PT_CHECKBOX";
+}
+export function parameterDefault(parameter: JenkinsParameter): JenkinsParameterValue {
+  const value = parameter.defaultParameterValue?.value;
+  if (isCheckboxParameter(parameter)) return Array.isArray(value) ? [...value] : [];
+  return value ?? (parameterKind(parameter) === "BooleanParameterDefinition" ? false : parameter.choices?.[0] || "");
+}
 
 export function parameterKind(parameter: JenkinsParameter): string {
   return (parameter._class || parameter.type || "").split(".").pop() || "";
@@ -7,7 +16,9 @@ export function parametersFor(job?: JenkinsJob): JenkinsParameter[] {
   return job?.property?.flatMap((p) => p.parameterDefinitions || []) || [];
 }
 export function supportedParameters(job?: JenkinsJob): boolean {
-  return parametersFor(job).every((p) => ["StringParameterDefinition", "TextParameterDefinition", "BooleanParameterDefinition", "ChoiceParameterDefinition"].includes(parameterKind(p)));
+  return !job?.parameterError && parametersFor(job).every((p) => isCheckboxParameter(p)
+    ? !!job?.parameterRevision && !!p.choices?.length
+    : ["StringParameterDefinition", "TextParameterDefinition", "BooleanParameterDefinition", "ChoiceParameterDefinition"].includes(parameterKind(p)));
 }
 export function isFolder(job: JenkinsJob): boolean {
   return /(?:Folder|MultiBranchProject|OrganizationFolder)$/.test(job._class);

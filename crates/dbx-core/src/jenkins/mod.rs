@@ -5,12 +5,14 @@ use std::time::Duration;
 use reqwest::{Client, Method, Response, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 use crate::connection::{AppState, PoolKind};
 use crate::models::connection::ConnectionConfig;
 
 #[cfg(test)]
 mod tests;
+mod parameters;
 
 const LOG_LIMIT: usize = 1024 * 1024;
 const JSON_LIMIT: usize = 16 * 1024 * 1024;
@@ -79,6 +81,7 @@ pub struct JenkinsRequest {
     pub start: u64,
     #[serde(default)]
     pub parameters: HashMap<String, Value>,
+    pub parameter_revision: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -228,7 +231,27 @@ impl JenkinsClient {
     }
 
     async fn job(&self, path: &[String]) -> Result<Value, String> {
-        self.json(path, &["api", "json"], Some("name,displayName,_class,color,buildable,inQueue,queueItem[id,why,cancelled,executable[number]],nextBuildNumber,property[parameterDefinitions[name,type,_class,description,choices,defaultParameterValue[value]]],lastBuild[number,result,building]")).await
+        let mut job = self.json(path, &["api", "json"], Some("name,displayName,_class,color,buildable,inQueue,queueItem[id,why,cancelled,executable[number]],nextBuildNumber,property[parameterDefinitions[name,type,_class,description,choices,defaultParameterValue[value]]],lastBuild[number,result,building]")).await?;
+        if parameter_definitions(&job).iter().any(parameters::is_checkbox) {
+            // A form error disables building without hiding history and logs.
+            if let Err(error) = self.enrich_parameters(path, &mut job).await {
+                job["parameterError"] = json!(error);
+            }
+        }
+        Ok(job)
+    }
+
+    async fn enrich_parameters(&self, path: &[String], job: &mut Value) -> Result<(), String> {
+        let response = self.send(Method::GET, self.endpoint(path, &["build"])?, None).await?;
+        let (bytes, truncated) = read_bytes(response, JSON_LIMIT).await?;
+        if truncated {
+            return Err("JENKINS_PARAMETER: Build form exceeds 16 MiB".into());
+        }
+        let html = std::str::from_utf8(&bytes).map_err(|_| "JENKINS_PARAMETER: Build form is not UTF-8")?;
+        parameters::enrich(job, html)?;
+        let definitions = serde_json::to_vec(&parameter_definitions(job)).map_err(|_| "Invalid parameters")?;
+        job["parameterRevision"] = json!(format!("{:x}", Sha256::digest(definitions)));
+        Ok(())
     }
 
     async fn log(&self, req: &JenkinsRequest) -> Result<JenkinsLog, String> {
@@ -266,11 +289,32 @@ impl JenkinsClient {
             return Err("Jenkins job is not buildable".into());
         }
         let definitions = parameter_definitions(&job);
+        if let Some(error) = job["parameterError"].as_str() {
+            return Err(error.to_owned());
+        }
+        let native = definitions.iter().any(parameters::is_checkbox);
+        if (native || req.parameter_revision.is_some()) && req.parameter_revision.as_deref() != job["parameterRevision"].as_str() {
+            return Err("JENKINS_PARAMETER: Parameters changed; reopen the job before building".into());
+        }
         let mut form = Vec::new();
+        let mut native_parameters = Vec::new();
         for definition in &definitions {
             let name = definition["name"].as_str().ok_or("Invalid Jenkins parameter name")?;
             let kind = parameter_kind(definition);
             let value = req.parameters.get(name).or_else(|| definition.pointer("/defaultParameterValue/value"));
+            if parameters::is_checkbox(definition) {
+                let values = value.and_then(Value::as_array).ok_or("JENKINS_PARAMETER: Checkbox array required")?;
+                let choices = definition["choices"].as_array().ok_or("JENKINS_PARAMETER: Missing checkbox options")?;
+                let mut seen = std::collections::HashSet::new();
+                for item in values {
+                    let item_text = item.as_str().ok_or("JENKINS_PARAMETER: Checkbox values must be strings")?;
+                    if !choices.contains(item) || !seen.insert(item_text) {
+                        return Err(format!("JENKINS_PARAMETER: Invalid checkbox selection for {name}"));
+                    }
+                }
+                native_parameters.push(json!({"name": name, "value": values}));
+                continue;
+            }
             let encoded = match kind {
                 "BooleanParameterDefinition" => {
                     value.and_then(Value::as_bool).ok_or("Boolean parameter required")?.to_string()
@@ -289,13 +333,20 @@ impl JenkinsClient {
                 }
                 _ => return Err("JENKINS_PARAMETER: Unsupported parameter type; run this job in Jenkins".into()),
             };
+            native_parameters.push(json!({"name": name, "value": if kind == "BooleanParameterDefinition" { json!(encoded == "true") } else { json!(encoded) }}));
             form.push((name.to_owned(), encoded));
         }
         if req.parameters.keys().any(|name| !definitions.iter().any(|d| d["name"].as_str() == Some(name))) {
             return Err("Unknown Jenkins parameter".into());
         }
-        let action = if definitions.is_empty() { "build" } else { "buildWithParameters" };
+        let action = if native || definitions.is_empty() { "build" } else { "buildWithParameters" };
+        if native {
+            form = vec![("json".into(), json!({"parameter": native_parameters}).to_string()), ("statusCode".into(), "201".into())];
+        }
         let response = self.send(Method::POST, self.endpoint(&req.path, &[action])?, Some(&form)).await?;
+        if native && response.status().as_u16() != 201 {
+            return Err("JENKINS_UNCONFIRMED: Build acceptance is unknown; refresh queue/history before retrying".into());
+        }
         if response.status().is_redirection() {
             return Err("JENKINS_UNCONFIRMED: Build request redirected; refresh history before retrying".into());
         }

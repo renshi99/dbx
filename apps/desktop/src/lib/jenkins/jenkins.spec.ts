@@ -1,10 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
-import { isFolder, jobUrl, parametersFor, supportedParameters, trimLog } from "./jenkins";
+import { isFolder, jobUrl, parametersFor, supportedParameters, trimLog, parameterDefault } from "./jenkins";
 import { createJenkinsApi } from "@/lib/backend/jenkins-api";
 import { quickConnectionOpenTarget } from "@/lib/connection/connectionOpenTarget";
 import type { JenkinsJob } from "@/types/jenkins";
 
 describe("Jenkins job navigation and parameters", () => {
+  it("requires resolved checkbox options and revision and copies defaults", () => {
+    const parameter = { name: "MODULES", _class: "com.cwctravel.hudson.plugins.extended_choice_parameter.ExtendedChoiceParameterDefinition", type: "PT_CHECKBOX", choices: ["gateway", "支付&清算"], defaultParameterValue: { value: ["支付&清算"] } };
+    const job: JenkinsJob = { name: "build", _class: "WorkflowJob", property: [{ parameterDefinitions: [parameter] }] };
+    expect(supportedParameters(job)).toBe(false);
+    job.parameterRevision = "revision";
+    expect(supportedParameters(job)).toBe(true);
+    const value = parameterDefault(parameter) as string[];
+    value.push("gateway");
+    expect(parameter.defaultParameterValue.value).toEqual(["支付&清算"]);
+    expect(parameterDefault({ ...parameter, defaultParameterValue: null })).toEqual([]);
+    job.parameterError = "Missing form";
+    expect(supportedParameters(job)).toBe(false);
+    delete job.parameterError;
+    parameter.type = "PT_MULTI_SELECT";
+    expect(supportedParameters(job)).toBe(false);
+  });
   it("preserves proxy prefixes and encodes each path segment", () => {
     expect(jobUrl("https://ci.example.com/jenkins", ["team space", "feature/a"], 12)).toBe("https://ci.example.com/jenkins/job/team%20space/job/feature%2Fa/12/");
     expect(jobUrl("https://ci.example.com/jenkins/", ["feature%2Fa"])).toContain("feature%252Fa");

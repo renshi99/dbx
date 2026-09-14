@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import * as api from "@/lib/backend/api";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { executeWithProductionContextGuard } from "@/lib/database/productionExecutionGuard";
-import { isFolder, jobUrl, parameterKind, parametersFor, supportedParameters, trimLog } from "@/lib/jenkins/jenkins";
-import type { JenkinsBuild, JenkinsConnectionInfo, JenkinsJob, JenkinsQueueItem, JenkinsRequest } from "@/types/jenkins";
+import { isCheckboxParameter, parameterDefault, isFolder, jobUrl, parameterKind, parametersFor, supportedParameters, trimLog } from "@/lib/jenkins/jenkins";
+import type { JenkinsBuild, JenkinsConnectionInfo, JenkinsJob, JenkinsQueueItem, JenkinsRequest, JenkinsParameterValue } from "@/types/jenkins";
 
 const props = defineProps<{ connectionId: string }>();
 const { t } = useI18n();
@@ -23,7 +23,7 @@ const history = ref<JenkinsBuild[]>([]);
 const page = ref(0);
 const build = ref<JenkinsBuild>();
 const queue = ref<JenkinsQueueItem>();
-const parameters = ref<Record<string, string | boolean>>({});
+const parameters = ref<Record<string, JenkinsParameterValue>>({});
 const log = ref("");
 const truncated = ref(false);
 const offset = ref(0);
@@ -94,7 +94,7 @@ async function selectJob(item: JenkinsJob) {
     job.value = detail;
     queue.value = detail.queueItem || undefined;
     history.value = builds.builds || [];
-    parameters.value = Object.fromEntries(parametersFor(detail).map((p) => [p.name, p.defaultParameterValue?.value ?? (parameterKind(p) === "BooleanParameterDefinition" ? false : p.choices?.[0] || "")]));
+    parameters.value = Object.fromEntries(parametersFor(detail).map((p) => [p.name, parameterDefault(p)]));
     if (history.value[0]) await selectBuild(history.value[0]);
   } catch (reason) {
     if (current(id)) error.value = message(reason);
@@ -241,7 +241,7 @@ async function refresh() {
 async function mutate(action: "trigger" | "cancel" | "stop") {
   if (mutating.value || !canWrite.value) return;
   const id = generation;
-  const req = { ...request(), number: build.value?.number, queueId: queue.value?.id, parameters: { ...parameters.value } };
+  const req = { ...request(), number: build.value?.number, queueId: queue.value?.id, parameterRevision: job.value?.parameterRevision, parameters: Object.fromEntries(Object.entries(parameters.value).map(([name, value]) => [name, Array.isArray(value) ? [...value] : value])) };
   const review = `${t(`jenkins.${action}`)}: ${selectedPath.value.join(" / ")}${action === "stop" ? ` #${req.number}` : ""}`;
   mutating.value = true;
   error.value = "";
@@ -361,17 +361,24 @@ onBeforeUnmount(() => {
           <a :href="externalUrl" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-xs text-primary"><ExternalLink class="size-3" />{{ t("jenkins.open") }}</a>
         </div>
         <div v-if="job.buildable" class="mb-4 space-y-3 rounded border p-3">
-          <p v-if="!supportedParameters(job)" class="text-sm text-amber-600">{{ t("jenkins.unsupportedParameters") }}</p>
+          <p v-if="!supportedParameters(job)" class="text-sm text-amber-600">{{ job.parameterError || t("jenkins.unsupportedParameters") }}</p>
           <template v-else>
-            <label v-for="parameter in definitions" :key="parameter.name" class="grid gap-1 text-sm">
+            <div v-for="parameter in definitions" :key="parameter.name" class="grid gap-1 text-sm">
               <span>{{ parameter.name }}</span>
-              <input v-if="parameterKind(parameter) === 'BooleanParameterDefinition'" v-model="parameters[parameter.name]" type="checkbox" class="size-4" />
-              <select v-else-if="parameterKind(parameter) === 'ChoiceParameterDefinition'" v-model="parameters[parameter.name]" class="rounded border bg-background p-2">
+              <div v-if="isCheckboxParameter(parameter)" class="max-h-48 overflow-y-auto space-y-1" role="group" :aria-label="parameter.name">
+                <label v-for="choice in parameter.choices" :key="choice" class="flex items-center gap-2">
+                  <input v-model="parameters[parameter.name]" type="checkbox" :value="choice" class="size-4" />
+                  <span>{{ choice }}</span>
+                </label>
+              </div>
+              <input v-else-if="parameterKind(parameter) === 'BooleanParameterDefinition'" v-model="parameters[parameter.name]" :aria-label="parameter.name" type="checkbox" class="size-4" />
+              <select v-else-if="parameterKind(parameter) === 'ChoiceParameterDefinition'" v-model="parameters[parameter.name]" :aria-label="parameter.name" class="rounded border bg-background p-2">
                 <option v-for="choice in parameter.choices" :key="choice" :value="choice">{{ choice }}</option>
               </select>
-              <textarea v-else-if="parameterKind(parameter) === 'TextParameterDefinition'" :value="String(parameters[parameter.name] ?? '')" @input="parameters[parameter.name] = ($event.target as HTMLTextAreaElement).value" class="rounded border bg-background p-2" rows="3" />
-              <input v-else v-model="parameters[parameter.name]" class="rounded border bg-background px-3 py-2" />
-            </label>
+              <textarea v-else-if="parameterKind(parameter) === 'TextParameterDefinition'" :aria-label="parameter.name" :value="String(parameters[parameter.name] ?? '')" @input="parameters[parameter.name] = ($event.target as HTMLTextAreaElement).value" class="rounded border bg-background p-2" rows="3" />
+              <input v-else v-model="parameters[parameter.name]" :aria-label="parameter.name" class="rounded border bg-background px-3 py-2" />
+              <span v-if="parameter.description" class="text-xs text-muted-foreground">{{ parameter.description }}</span>
+            </div>
           </template>
           <Button size="sm" :disabled="!canWrite || mutating || loading || !supportedParameters(job)" @click="mutate('trigger')"><Play class="mr-1 size-4" />{{ t("jenkins.trigger") }}</Button>
           <span v-if="info?.anonymous" class="ml-3 text-xs text-muted-foreground">{{ t("jenkins.anonymous") }}</span>

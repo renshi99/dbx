@@ -72,6 +72,36 @@ afterEach(() => {
 });
 
 describe("Jenkins workspace", () => {
+  it("renders checkbox options and submits selected arrays with the parameter revision", async () => {
+    mocks.job.mockResolvedValue({ name: "compile", _class: "WorkflowJob", buildable: true, parameterRevision: "revision",
+      property: [{ parameterDefinitions: [
+        { name: "MODULES", _class: "com.cwctravel.hudson.plugins.extended_choice_parameter.ExtendedChoiceParameterDefinition", type: "PT_CHECKBOX", choices: ["gateway", "支付&清算"], defaultParameterValue: { value: [] } },
+        { name: "Branch", _class: "hudson.model.StringParameterDefinition", defaultParameterValue: { value: "test" } },
+      ] }] });
+    mocks.trigger.mockResolvedValue({ accepted: true, queueId: 99 });
+    await mount();
+    click("compile");
+    await flush();
+    const checkboxes = [...host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes.every((input) => !input.checked)).toBe(true);
+    for (const input of checkboxes) input.click();
+    await flush();
+    click("jenkins.trigger");
+    await flush();
+    expect(mocks.trigger).toHaveBeenCalledWith(expect.objectContaining({ parameterRevision: "revision", parameters: { MODULES: ["gateway", "支付&清算"], Branch: "test" } }));
+  });
+  it("keeps logs available but disables building when form parsing fails", async () => {
+    mocks.job.mockResolvedValue({ name: "compile", _class: "WorkflowJob", buildable: true, parameterError: "JENKINS_PARAMETER: Missing form" });
+    await mount();
+    click("compile");
+    await flush();
+    expect(host.textContent).toContain("JENKINS_PARAMETER: Missing form");
+    const trigger = [...host.querySelectorAll("button")].find((el) => el.textContent?.includes("jenkins.trigger"));
+    expect(trigger?.disabled).toBe(true);
+    expect(mocks.log).toHaveBeenCalled();
+    expect(mocks.trigger).not.toHaveBeenCalled();
+  });
   it("allows cancelling an existing queued job without triggering it again", async () => {
     mocks.job.mockResolvedValue({ name: "compile", _class: "hudson.model.FreeStyleProject", buildable: true, queueItem: { id: 77, why: "Waiting for executor" } });
     mocks.cancel.mockResolvedValue(undefined);

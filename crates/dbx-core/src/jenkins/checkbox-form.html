@@ -1,0 +1,16 @@
+<!doctype html><html><body>
+<form method="get" action="search"><input name="q"></form>
+<form method="post" action="build?delay=0sec">
+  <div name="parameter"><input type="hidden" name="name" value="TARGET">
+    <select name="value"><option value="dev">dev</option><option selected value="stage">stage</option></select>
+  </div>
+  <div name="parameter"><input type="hidden" name="name" value="MODULES">
+    <div><table><tr><td><input type="checkbox" name="MODULES.value" value="gateway"></td></tr>
+    <tr><td><input type="checkbox" name="MODULES.value" value="支付&amp;清算" checked></td></tr></table></div>
+  </div>
+  <div name="parameter"><input type="hidden" name="name" value="Branch"><input type="text" name="value" value="test"></div>
+  <div name="parameter"><input type="hidden" name="name" value="FLAG"><input type="checkbox" name="value" checked></div>
+  <div name="parameter"><input type="hidden" name="name" value="NOTES"><textarea name="value">构建 &lt;说明&gt;</textarea></div>
+  <script>throw new Error('Must never execute');</script>
+  <button type="submit">Build</button>
+</form></body></html>

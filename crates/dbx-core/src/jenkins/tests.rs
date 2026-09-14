@@ -1,6 +1,110 @@
 use super::*;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+const CHECKBOX_FORM: &str = include_str!("checkbox-form.html");
+
+fn checkbox_job() -> Value {
+    json!({"buildable": true, "property": [{"parameterDefinitions": [
+        {"name": "TARGET", "_class": "hudson.model.ChoiceParameterDefinition", "choices": ["dev", "stage"]},
+        {"name": "MODULES", "_class": "com.cwctravel.hudson.plugins.extended_choice_parameter.ExtendedChoiceParameterDefinition", "type": "PT_CHECKBOX"},
+        {"name": "Branch", "_class": "hudson.model.StringParameterDefinition"},
+        {"name": "FLAG", "_class": "hudson.model.BooleanParameterDefinition"},
+        {"name": "NOTES", "_class": "hudson.model.TextParameterDefinition"}
+    ]}]})
+}
+
+fn checkbox_revision() -> String {
+    let mut job = checkbox_job();
+    parameters::enrich(&mut job, CHECKBOX_FORM).unwrap();
+    format!("{:x}", Sha256::digest(serde_json::to_vec(&parameter_definitions(&job)).unwrap()))
+}
+
+#[test]
+fn parses_native_form_defaults_and_entities_without_running_scripts() {
+    let mut job = checkbox_job();
+    parameters::enrich(&mut job, CHECKBOX_FORM).unwrap();
+    let definitions = parameter_definitions(&job);
+    assert_eq!(definitions[0]["defaultParameterValue"]["value"], "stage");
+    assert_eq!(definitions[1]["choices"], json!(["gateway", "支付&清算"]));
+    assert_eq!(definitions[1]["defaultParameterValue"]["value"], json!(["支付&清算"]));
+    assert_eq!(definitions[2]["defaultParameterValue"]["value"], "test");
+    assert_eq!(definitions[3]["defaultParameterValue"]["value"], true);
+    assert_eq!(definitions[4]["defaultParameterValue"]["value"], "构建 <说明>");
+    parameters::enrich(&mut job, &CHECKBOX_FORM.replace(" checked", "")).unwrap();
+    assert_eq!(parameter_definitions(&job)[1]["defaultParameterValue"]["value"], json!([]));
+}
+
+#[test]
+fn refuses_missing_ambiguous_and_unsupported_form_fields() {
+    for html in ["<form method='post'>Login</form>".to_owned(), CHECKBOX_FORM.replace("MODULES.value", "wrong"),
+        CHECKBOX_FORM.replace("value=\"MODULES\"", "value=\"TARGET\""), CHECKBOX_FORM.replace("name=\"value\" value=\"test\"", "name=\"missing\""),
+        format!("{CHECKBOX_FORM}{CHECKBOX_FORM}")] {
+        assert!(parameters::enrich(&mut checkbox_job(), &html).is_err());
+    }
+    let mut job = checkbox_job();
+    job["property"][0]["parameterDefinitions"][1]["type"] = json!("PT_MULTI_SELECT");
+    assert!(parameters::enrich(&mut job, CHECKBOX_FORM).unwrap_err().contains("Unsupported parameter"));
+}
+
+#[tokio::test]
+async fn native_build_preserves_array_and_scalar_types_and_queue() {
+    for values in [json!([]), json!(["gateway"]), json!(["gateway", "支付&清算"])] {
+        let (base, task) = server(vec![
+            response("200 OK", "", &checkbox_job().to_string()), response("200 OK", "", CHECKBOX_FORM),
+            response("201 Created", "Location: /jenkins/queue/item/25/\r\n", ""),
+        ]).await;
+        let req = JenkinsRequest { path: vec!["deploy".into()], parameter_revision: Some(checkbox_revision()),
+            parameters: HashMap::from([("MODULES".into(), values.clone())]), ..Default::default() };
+        assert_eq!(client(&base).trigger(&req).await.unwrap()["queueId"], 25);
+        let requests = task.await.unwrap();
+        assert_eq!(requests.len(), 3);
+        assert!(requests[1].starts_with("GET /jenkins/job/deploy/build "));
+        assert!(requests[1].to_ascii_lowercase().contains("authorization: basic "));
+        assert!(requests[2].starts_with("POST /jenkins/job/deploy/build "));
+        let body = requests[2].split("\r\n\r\n").nth(1).unwrap();
+        let encoded = Url::parse(&format!("http://fixture.invalid/?{body}")).unwrap();
+        let form: HashMap<_, _> = encoded.query_pairs().into_owned().collect();
+        let payload: Value = serde_json::from_str(&form["json"]).unwrap();
+        assert_eq!(payload["parameter"][1]["value"], values);
+        assert_eq!(payload["parameter"][0]["value"], "stage");
+        assert_eq!(payload["parameter"][2]["value"], "test");
+        assert_eq!(payload["parameter"][3]["value"], true);
+        assert_eq!(form["statusCode"], "201");
+    }
+}
+
+#[tokio::test]
+async fn native_build_errors_never_post() {
+    for (html, status, revision, values) in [
+        (CHECKBOX_FORM.to_owned(), "200 OK", checkbox_revision(), json!(["unknown"])),
+        (CHECKBOX_FORM.to_owned(), "200 OK", checkbox_revision(), json!(["gateway", "gateway"])),
+        (CHECKBOX_FORM.to_owned(), "200 OK", checkbox_revision(), json!("gateway")),
+        (CHECKBOX_FORM.replace("gateway", "new-module"), "200 OK", checkbox_revision(), json!([])),
+        (CHECKBOX_FORM.to_owned(), "200 OK", "old".into(), json!([])),
+        ("<html>Login</html>".into(), "200 OK", checkbox_revision(), json!([])),
+        (String::new(), "403 Forbidden", checkbox_revision(), json!([])),
+    ] {
+        let (base, task) = server(vec![response("200 OK", "", &checkbox_job().to_string()), response(status, "", &html)]).await;
+        let req = JenkinsRequest { path: vec!["deploy".into()], parameter_revision: Some(revision),
+            parameters: HashMap::from([("MODULES".into(), values)]), ..Default::default() };
+        assert!(client(&base).trigger(&req).await.is_err());
+        let requests = task.await.unwrap();
+        assert_eq!(requests.len(), 2);
+        assert!(requests.iter().all(|request| request.starts_with("GET ")));
+    }
+}
+
+#[tokio::test]
+async fn native_build_does_not_retry_ambiguous_responses() {
+    for (status, headers) in [("200 OK", ""), ("302 Found", "Location: /jenkins/\r\n"), ("503 Unavailable", "")] {
+        let (base, task) = server(vec![response("200 OK", "", &checkbox_job().to_string()),
+            response("200 OK", "", CHECKBOX_FORM), response(status, headers, "")]).await;
+        let request = JenkinsRequest { path: vec!["deploy".into()], parameter_revision: Some(checkbox_revision()), ..Default::default() };
+        assert!(client(&base).trigger(&request).await.unwrap_err().contains("JENKINS_UNCONFIRMED"));
+        assert_eq!(task.await.unwrap().iter().filter(|request| request.starts_with("POST ")).count(), 1);
+    }
+}
+
 fn client(base: &str) -> JenkinsClient {
     JenkinsClient {
         http: Client::builder()
