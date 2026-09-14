@@ -2,6 +2,7 @@ export interface JenkinsConfig {
   serverAddr: string;
   tlsSkipVerify: boolean;
 }
+export type JenkinsParameterValue = string | boolean | string[];
 export interface JenkinsRequest {
   connectionId: string;
   path?: string[];
@@ -9,7 +10,8 @@ export interface JenkinsRequest {
   queueId?: number;
   page?: number;
   start?: number;
-  parameters?: Record<string, string | boolean>;
+  parameters?: Record<string, JenkinsParameterValue>;
+  parameterRevision?: string;
 }
 export interface JenkinsConnectionInfo {
   version?: string;
@@ -22,7 +24,7 @@ export interface JenkinsParameter {
   _class?: string;
   description?: string;
   choices?: string[];
-  defaultParameterValue?: { value: string | boolean };
+  defaultParameterValue?: { value?: JenkinsParameterValue } | null;
 }
 export interface JenkinsBuild {
   number: number;
@@ -34,6 +36,8 @@ export interface JenkinsBuild {
   queueId?: number;
 }
 export interface JenkinsJob {
+  parameterRevision?: string;
+  parameterError?: string;
   name: string;
   displayName?: string;
   _class: string;

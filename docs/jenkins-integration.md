@@ -15,12 +15,20 @@ DBX 桌面版与 Web 版通过共用 Rust HTTP 客户端访问 Jenkins 2.x Remot
 - 在当前目录筛选任务，进入 Folder、Organization Folder 和多分支 Pipeline 容器。
 - 查看 Freestyle / Pipeline 任务详情和每页 50 条构建历史。
 - 触发普通或参数化构建，跟踪排队到实际构建，取消排队、请求停止构建。
-- 参数支持字符串、文本、布尔和固定选项。遇到其他参数类型时在 Jenkins 原页面操作。
+- 参数支持字符串、文本、布尔、固定选项，以及 Extended Choice Parameter 插件的 `PT_CHECKBOX` 多选。遇到其他参数类型时在 Jenkins 原页面操作。
 - 按字节偏移每 2 秒增量读取控制台日志，每次最多 1 MiB，界面保留最近 5 MiB。页面隐藏时暂停轮询，关闭工作区后停止。日志只作为文本显示。
 
 写操作不会自动重试。请求超时或服务端异常后，应刷新队列与历史确认结果，再决定是否重新提交。收到停止/取消响应仅表示已请求，最终状态以 Jenkins 返回为准。队列项过期时尝试用最近构建的 `queueId` 对应；无法对应则显示状态未知。
 
-首版不支持密码登录、SSO、插件参数、任务配置编辑、节点或凭据管理、产物下载和阶段视图。
+不支持密码登录、SSO、其他插件参数、任务配置编辑、节点或凭据管理、产物下载和阶段视图。
+
+## Extended Choice 多选构建
+
+包含 `com.cwctravel.hudson.plugins.extended_choice_parameter.ExtendedChoiceParameterDefinition` 且类型为 `PT_CHECKBOX` 的任务，会使用现有连接认证读取原生构建表单。选项和默认值从静态 HTML 解析，不执行脚本，不读取 `config.xml`，不需要 `Job/Configure` 权限。表单依赖脚本生成或无法解析时禁用构建，并保留日志查看。
+
+任务详情增加 `parameterRevision` 和可选的 `parameterError`；多选参数使用 `choices` 与数组形式的 `defaultParameterValue.value`。构建请求的 `parameters` 支持字符串、布尔和字符串数组，插件参数任务需回传 `parameterRevision`。后端提交前重新读取定义及表单，参数发生变化时要求刷新任务。
+
+插件任务向 `build` 提交原生 `json.parameter`，多选值保持数组，由 Jenkins 插件处理分隔符。仅 HTTP 201 视为明确受理；不明确的响应不会自动重试。基础参数任务继续使用 `buildWithParameters`。认证与 CSRF 行为沿用现有 API Token 方式。
 
 ## 实现与验证
 
